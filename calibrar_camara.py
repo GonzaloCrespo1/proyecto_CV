@@ -36,7 +36,7 @@ import numpy as np
 TAMANO_DAMERO = (9, 6)
 
 # Lado de cada cuadro en mm (las unidades de los tvecs saldrán en mm)
-TAMANO_CUADRO = 30.0
+TAMANO_CUADRO = 23.0
 
 CARPETA_FOTOS = "fotos_damero"
 CARPETA_RESULTADOS = "resultados_calibracion"
@@ -211,3 +211,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    print("hecho")

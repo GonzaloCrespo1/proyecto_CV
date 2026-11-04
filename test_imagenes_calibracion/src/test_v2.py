@@ -28,7 +28,7 @@ FILE_PREFIX = "damero_"
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Capture chessboard images for camera calibration.")
-    parser.add_argument("--camera", type=int, default=1, help="Camera index (default: 1)")
+    parser.add_argument("--camera", type=int, default=0, help="Camera index (default: 0)")
     parser.add_argument("--width", type=int, default=1280, help="Requested frame width")
     parser.add_argument("--height", type=int, default=720, help="Requested frame height")
     parser.add_argument("--interval", type=float, default=2.0, help="Seconds between photos (default: 2)")
