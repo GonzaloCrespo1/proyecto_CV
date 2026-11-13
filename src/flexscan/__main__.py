@@ -9,7 +9,8 @@ def main():
     cap = abrir_camara()
     corrector = Corrector(RUTA_CALIBRACION) 
     contador = ContadorFPS()
-    print("Pulsa 'q' para salir")
+    corregir = True 
+    print("Pulsa 'c' para alternar original/corregida, 'q' para salir")
 
     while True:
         ok, frame = cap.read()
@@ -17,16 +18,21 @@ def main():
             print("No se pudo leer el fotograma")
             break
         
-        frame = corrector.corregir(frame) 
+        if corregir:
+            frame = corrector.corregir(frame) 
         
         fps = contador.actualizar()  
-        cv2.putText(frame, f"FPS: {fps:.1f}", (10, 30),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2) 
+        modo = "CORREGIDA" if corregir else "ORIGINAL"
+        cv2.putText(frame, f"{modo}  FPS: {fps:.1f}", (10, 30),      
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
         cv2.imshow("FlexScan", frame)
 
-        if cv2.waitKey(1) & 0xFF == ord("q"):
+        tecla = cv2.waitKey(1) & 0xFF
+        if tecla == ord("q"):
             break
+        if tecla == ord("c"):                                        
+            corregir = not corregir
 
     cap.release()
     cv2.destroyAllWindows()
