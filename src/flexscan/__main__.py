@@ -1,11 +1,13 @@
 """Punto de entrada del programa: python -m flexscan"""
 import cv2
 
+from flexscan.calibracion import Corrector, RUTA_CALIBRACION
 from flexscan.camara import abrir_camara
 from flexscan.fps import ContadorFPS
 
 def main():
     cap = abrir_camara()
+    corrector = Corrector(RUTA_CALIBRACION) 
     contador = ContadorFPS()
     print("Pulsa 'q' para salir")
 
@@ -14,6 +16,8 @@ def main():
         if not ok:
             print("No se pudo leer el fotograma")
             break
+        
+        frame = corrector.corregir(frame) 
         
         fps = contador.actualizar()  
         cv2.putText(frame, f"FPS: {fps:.1f}", (10, 30),
