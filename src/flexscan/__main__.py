@@ -5,14 +5,18 @@ from flexscan.calibracion import Corrector, RUTA_CALIBRACION
 from flexscan.camara import abrir_camara
 from flexscan.fps import ContadorFPS
 from flexscan.preprocesado import preprocesar
+from flexscan.tarjeta import (TARJETA_VACIA, buscar_marco, dibujar_marco,   # NUEVO
+                              enderezar) 
 
 def main():
     cap = abrir_camara()
     corrector = Corrector(RUTA_CALIBRACION) 
     contador = ContadorFPS()
     corregir = True 
-    ver_mascara = False                               
-    print("Teclas: 'c' original/corregida, 'm' máscara, 'q' salir")   
+    ver_mascara = False                   
+    ver_tarjeta = False                                                     
+    print("Teclas: 'c' corregida, 'm' máscara, 't' tarjeta, 'q' salir")            
+    
     
 
     while True:
@@ -23,9 +27,21 @@ def main():
         
         if corregir:
             frame = corrector.corregir(frame) 
+            
+        if ver_mascara or ver_tarjeta:                                     
+            mascara = preprocesar(frame)
         
-        if ver_mascara:                              
-            cv2.imshow("Mascara", preprocesar(frame))
+        if ver_mascara:
+            cv2.imshow("Mascara", mascara)
+        
+        if ver_tarjeta:                                                   
+            esquinas = buscar_marco(mascara)
+            if esquinas is None:
+                cv2.imshow("Tarjeta", TARJETA_VACIA)
+            else:
+                cv2.imshow("Tarjeta", enderezar(frame, esquinas))
+                dibujar_marco(frame, esquinas) 
+    
             
         fps = contador.actualizar()  
         modo = "CORREGIDA" if corregir else "ORIGINAL"
@@ -39,10 +55,14 @@ def main():
             break
         if tecla == ord("c"):                                        
             corregir = not corregir
-        if tecla == ord("m"):                         #
+        if tecla == ord("m"):                      
             ver_mascara = not ver_mascara
             if not ver_mascara:
                 cv2.destroyWindow("Mascara")
+        if tecla == ord("t"):                                              
+            ver_tarjeta = not ver_tarjeta
+            if not ver_tarjeta:
+                cv2.destroyWindow("Tarjeta")
 
     cap.release()
     cv2.destroyAllWindows()
