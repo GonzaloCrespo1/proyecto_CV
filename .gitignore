@@ -1,2 +1,24 @@
+# Entornos virtuales
 entorno_virt
 entorno_virt_mateo
+venv/
+.venv/
+
+# Python
+__pycache__/
+*.pyc
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Ficheros generados al compilar LaTeX (plantilla)
+*.aux
+*.log
+*.fls
+*.fdb_latexmk
+*.toc
+*.out
+*.bbl
+*.bcf
+*-SAVE-ERROR
