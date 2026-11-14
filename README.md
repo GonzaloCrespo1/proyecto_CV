@@ -90,7 +90,8 @@ requirements.txt     dependencias con versiones fijas
 FlexScan_Plan_de_trabajo.pdf                       plan por bloques y estado
 FlexScan_C1-C2_Calibracion_y_preparacion.pdf       cuaderno técnico: calibración y preparación
 FlexScan_C3-C4_Deteccion_de_patrones.pdf           cuaderno técnico: cámara y detección de patrones
-FlexScan_Explicaciones_tecnicas.docx               cuaderno técnico en curso (C5 en adelante)
+FlexScan_C5_Seguridad.pdf                          cuaderno técnico: control de acceso
+FlexScan_Explicaciones_tecnicas.docx               cuaderno técnico en curso (C6 en adelante)
 ```
 Cada grupo de bloques cerrado se pasa a su propio PDF y el Word queda libre para el siguiente.
 
