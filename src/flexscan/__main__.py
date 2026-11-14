@@ -78,7 +78,7 @@ def main():
         cv2.putText(frame, f"{modo}  FPS: {fps:.1f}", (10, 30),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
-        if simbolo is not None:                                        
+        if simbolo is not None and acceso is None and usuario is None:                                        
             color = (0, 255, 0) if simbolo != DESCONOCIDO else (0, 165, 255)   
             cv2.putText(frame, f"Simbolo: {simbolo}", (10, 70),        
                         cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)    

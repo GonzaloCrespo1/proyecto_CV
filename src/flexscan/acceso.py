@@ -35,7 +35,7 @@ def _pista(acceso, ahora):
     if acceso.estado == sec.EN_CURSO:
         return f"Ensena el simbolo {len(acceso.simbolos) + 1} de {usuarios.LONGITUD}"
     if acceso.estado == sec.CONCEDIDO:
-        return "Pulsa e para volver a entrar"
+        return "Acceso correcto"
     if acceso.estado == sec.DENEGADO:
         return "Clave incorrecta"
     return f"Demasiados fallos: espera {math.ceil(acceso.segundos_bloqueo(ahora))} s"
