@@ -112,3 +112,20 @@ def pedir_nombre():
             formulario.resultado = "cancelado"           # se cerró la ventana con la X
     cv2.destroyWindow(ventana)
     return formulario.nombre.strip() if formulario.resultado == "aceptado" else None
+
+def iniciar_acceso(anterior=None):                                          
+    """Pide el nombre y devuelve una Secuencia nueva, o None si no se puede o se cancela.   
+                                                                            
+    No se puede mientras haya un bloqueo en marcha. Si se vuelve a entrar con el mismo      
+    nombre se conservan los fallos, para que repetir la tecla no sirva para saltarse el bloqueo.   
+    """                                                                     
+    if anterior is not None and anterior.estado == sec.BLOQUEADO:           
+        return None                                                          
+    nombre = pedir_nombre()                                                
+    if nombre is None:                                                      
+        return None                                                          
+    nueva = sec.Secuencia(nombre)                                            
+    if anterior is not None and (usuarios.normalizar(anterior.nombre)        
+                                 == usuarios.normalizar(nombre)):            
+        nueva.intentos = anterior.intentos                                   
+    return nueva                                                             
