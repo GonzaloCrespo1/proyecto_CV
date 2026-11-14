@@ -41,16 +41,18 @@ def main():
         if corregir:
             frame = corrector.corregir(frame)
 
-        mascara = preprocesar(frame)                         
-        esquinas = buscar_marco(mascara)                    
-        lectura = None                                     
-        if esquinas is not None:                             
-            tarjeta = enderezar(frame, esquinas)             
-            rasgos, formas = medir_rasgos(tarjeta)           
-            lectura = clasificar(rasgos)                     
-            dibujar_marco(frame, esquinas)    
-            
-                           
+        mascara = None
+        esquinas = None
+        lectura = None
+        if usuario is None:
+            mascara = preprocesar(frame)
+            esquinas = buscar_marco(mascara)
+            if esquinas is not None:
+                tarjeta = enderezar(frame, esquinas)
+                rasgos, formas = medir_rasgos(tarjeta)
+                lectura = clasificar(rasgos)
+                dibujar_marco(frame, esquinas)
+
         simbolo = estabilizador.actualizar(lectura)          
 
         
@@ -63,7 +65,7 @@ def main():
                 acceso = None
             
             
-        if ver_mascara:
+        if ver_mascara and mascara is not None:
             cv2.imshow("Mascara", mascara)
 
         if ver_tarjeta:
@@ -78,7 +80,7 @@ def main():
         cv2.putText(frame, f"{modo}  FPS: {fps:.1f}", (10, 30),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
-        if simbolo is not None and acceso is None and usuario is None:                                        
+        if simbolo is not None and acceso is None:                                        
             color = (0, 255, 0) if simbolo != DESCONOCIDO else (0, 165, 255)   
             cv2.putText(frame, f"Simbolo: {simbolo}", (10, 70),        
                         cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)    
