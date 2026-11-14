@@ -36,6 +36,7 @@ Teclas:
 | **c** | alterna entre imagen corregida y original |
 | **m** | muestra u oculta la máscara binaria |
 | **t** | muestra u oculta la tarjeta enderezada con sus rasgos |
+| **r** | abre la ventana para registrar un usuario nuevo (nombre y clave de 4 símbolos) |
 | **q** | sale |
 
 ## Cómo se usa el detector

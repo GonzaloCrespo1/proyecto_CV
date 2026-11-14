@@ -10,6 +10,8 @@ from flexscan.preprocesado import preprocesar
 from flexscan.rasgos import anotar, dibujar_rasgos, medir_rasgos
 from flexscan.tarjeta import (TARJETA_VACIA, buscar_marco, dibujar_marco,
                               enderezar)
+from flexscan.registro import pedir_registro  
+
 
 
 def main():
@@ -20,7 +22,7 @@ def main():
     corregir = True
     ver_mascara = False
     ver_tarjeta = False
-    print("Teclas: 'c' corregida, 'm' máscara, 't' tarjeta, 'q' salir")
+    print("Teclas: 'c' corregida, 'm' máscara, 't' tarjeta, 'r' registro, 'q' salir")  
 
     while True:
         ok, frame = cap.read()
@@ -38,7 +40,9 @@ def main():
             tarjeta = enderezar(frame, esquinas)             
             rasgos, formas = medir_rasgos(tarjeta)           
             lectura = clasificar(rasgos)                     
-            dibujar_marco(frame, esquinas)                   
+            dibujar_marco(frame, esquinas)    
+            
+                           
         simbolo = estabilizador.actualizar(lectura)          
 
         if ver_mascara:
@@ -76,6 +80,11 @@ def main():
             ver_tarjeta = not ver_tarjeta
             if not ver_tarjeta:
                 cv2.destroyWindow("Tarjeta")
+        if tecla == ord("r"):                                      
+            if pedir_registro():                                    
+                print("Usuario registrado")                        
+            estabilizador = Estabilizador()                        
+        
 
     cap.release()
     cv2.destroyAllWindows()
