@@ -8,6 +8,7 @@ from flexscan.fps import ContadorFPS
 from flexscan.preprocesado import preprocesar
 from flexscan.tarjeta import (TARJETA_VACIA, buscar_marco, dibujar_marco,   # NUEVO
                               enderezar) 
+from flexscan.clasificador import clasificar
 
 def main():
     cap = abrir_camara()
@@ -41,8 +42,9 @@ def main():
                 cv2.imshow("Tarjeta", anotar(TARJETA_VACIA, ("sin tarjeta",)))   
             else:
                 tarjeta = enderezar(frame, esquinas)                             
-                rasgos, formas = medir_rasgos(tarjeta)                           
-                cv2.imshow("Tarjeta", dibujar_rasgos(tarjeta, rasgos, formas))    
+                rasgos, formas = medir_rasgos(tarjeta)  
+                nombre = clasificar(rasgos)                         
+                cv2.imshow("Tarjeta", dibujar_rasgos(tarjeta, rasgos, formas,nombre))    
                 dibujar_marco(frame, esquinas)
             
         fps = contador.actualizar()  

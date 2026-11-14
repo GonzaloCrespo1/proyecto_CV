@@ -9,7 +9,7 @@ from flexscan.preprocesado import preprocesar
 MARGEN = 25            # px del borde que se ignoran (el marco de la tarjeta)
 AREA_MIN_FORMA = 150   # área mínima de una mancha o hueco (descarta ruido)
 TOL_POLIGONO = 0.03    # tolerancia de approxPolyDP (fracción del perímetro)
-BANDA = 44             # alto de la banda de texto bajo la tarjeta
+BANDA = 62             # alto de la banda de texto bajo la tarjeta
 
 
 @dataclass
@@ -56,11 +56,12 @@ def anotar(imagen, lineas):
     return imagen
 
 
-def dibujar_rasgos(tarjeta, rasgos, formas):
+def dibujar_rasgos(tarjeta, rasgos, formas,nombre=""):
     """Tarjeta con manchas (verde), huecos (rojo) y los rasgos debajo."""
     img = tarjeta.copy()
     manchas, huecos = formas
     cv2.drawContours(img, manchas, -1, (0, 200, 0), 2, offset=(MARGEN, MARGEN))
     cv2.drawContours(img, huecos, -1, (0, 0, 255), 2, offset=(MARGEN, MARGEN))
     return anotar(img, (f"manchas {rasgos.n_manchas}  huecos {rasgos.n_huecos}",
-                        f"vertices {rasgos.vertices}"))
+                        f"vertices {rasgos.vertices}",         # MODIFICADA (añade coma)
+                        f"simbolo: {nombre}"))                 # NUEVA

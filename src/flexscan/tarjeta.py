@@ -9,13 +9,12 @@ TARJETA_VACIA = np.zeros((LADO, LADO, 3), np.uint8)
 
 
 def ordenar_esquinas(puntos):
-    """Ordena 4 puntos: arriba-izq., arriba-der., abajo-der., abajo-izq."""
-    suma = puntos.sum(axis=1)
-    resta = puntos[:, 1] - puntos[:, 0]
-    return np.array([puntos[np.argmin(suma)], puntos[np.argmin(resta)],
-                     puntos[np.argmax(suma)], puntos[np.argmax(resta)]],
-                    np.float32)
-
+    """Ordena 4 puntos en sentido horario empezando por el de menor x+y."""
+    centro = puntos.mean(axis=0)
+    angulos = np.arctan2(puntos[:, 1] - centro[1], puntos[:, 0] - centro[0])
+    ordenados = puntos[np.argsort(angulos)]
+    inicio = np.argmin(ordenados.sum(axis=1))
+    return np.roll(ordenados, -inicio, axis=0).astype(np.float32)
 
 def buscar_marco(mascara):
     """Devuelve las 4 esquinas del marco de la tarjeta, o None."""
