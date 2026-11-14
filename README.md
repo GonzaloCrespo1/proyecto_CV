@@ -6,9 +6,10 @@ Proyecto final de *Visión por Ordenador I* (3º IMAT, ICAI).
 ## Estado
 En desarrollo. Ya funciona:
 - la captura de la webcam a 1280×720, el contador de FPS y la corrección de la distorsión de la lente en directo;
-- el **detector de patrones**: localiza la tarjeta en el vídeo, la pone de frente y reconoce cuál de los cuatro símbolos es (círculos concéntricos, triángulo, barras o hexágono). El símbolo detectado aparece sobre la imagen cuando se mantiene estable durante 5 fotogramas.
+- el **detector de patrones**: localiza la tarjeta en el vídeo, la pone de frente y reconoce cuál de los cuatro símbolos es (círculos concéntricos, triángulo, barras o hexágono). El símbolo detectado aparece sobre la imagen cuando se mantiene estable durante 5 fotogramas;
+- el **control de acceso** con una secuencia de cuatro patrones: registro de usuarios (nombre y clave visual), entrada enseñando las tarjetas a la cámara en orden, bloqueo tras tres fallos seguidos y sesión abierta con el usuario en pantalla.
 
-La secuencia de símbolos y el control de acceso se añaden en el siguiente bloque.
+Queda por construir la evaluación de la flexibilidad con la cámara.
 
 La documentación técnica de cada bloque está en la carpeta del proyecto (ver «Documentación»).
 
@@ -37,12 +38,29 @@ Teclas:
 | **m** | muestra u oculta la máscara binaria |
 | **t** | muestra u oculta la tarjeta enderezada con sus rasgos |
 | **r** | abre la ventana para registrar un usuario nuevo (nombre y clave de 4 símbolos) |
+| **e** | entrar: pide el nombre y después hay que enseñar a la cámara los cuatro símbolos de la clave, en orden |
+| **s** | cierra la sesión abierta |
 | **q** | sale |
 
 ## Cómo se usa el detector
 1. Imprime o dibuja una tarjeta con uno de los símbolos de la carpeta `patrones/`, **con su marco negro**, sobre papel blanco.
 2. Enséñala a la cámara con buena luz. Puede ir girada o inclinada.
 3. Cuando el símbolo se mantiene estable aparece en pantalla como `Simbolo: ...`. Si lo que se ve no encaja con ninguno, pone `desconocido`.
+
+## Cómo se usa el control de acceso
+1. **Registrarse.** Pulsa **r**, escribe el nombre y pulsa en orden los cuatro símbolos de la clave (se pueden repetir). Después, «Guardar».
+2. **Entrar.** Pulsa **e**, escribe el nombre y enseña a la cámara las tarjetas en el mismo orden. Cada símbolo aceptado aparece en el panel de abajo a la izquierda. Para repetir un símbolo hay que retirar la tarjeta y volver a enseñarla.
+3. **Resultado.** Con la clave correcta sale *acceso concedido* y, a los 3 s, queda el usuario escrito arriba a la derecha (sesión abierta). Si no, sale *acceso denegado*. Tras **3 fallos seguidos** hay un bloqueo de 30 s en el que **e** no hace nada.
+4. **Salir.** Con **s** se cierra la sesión y se puede entrar con otro usuario. Mientras hay una sesión abierta no se detectan las tarjetas.
+
+Los usuarios se guardan en `usuarios.json` (nombre, sal y hash de la clave; nunca la clave). Ese fichero **no se sube a GitHub**: cada persona tiene el suyo y debe registrarse en su ordenador. Las tarjetas se imprimen a partir de las imágenes de `patrones/`.
+
+### Limitaciones
+- Solo hay 256 claves posibles (4 símbolos con 4 opciones cada uno): el hash protege frente a leer la clave del fichero, no frente a probarlas todas.
+- El bloqueo vale para la ejecución actual: al cerrar y volver a abrir el programa se reinicia.
+- El registro no pide autenticación: cualquiera con acceso al teclado puede crear usuarios.
+- El nombre no admite tildes ni ñ (límite de las fuentes de OpenCV).
+- Solo hay una sesión a la vez.
 
 ## Estructura
 ```
@@ -57,7 +75,12 @@ src/flexscan/
     clasificador.py    decide el símbolo por reglas a partir de los rasgos
     estabilidad.py     confirma el símbolo tras varios fotogramas seguidos
     generar_patrones.py  dibuja los cuatro símbolos en patrones/
+    usuarios.py        guarda y comprueba los usuarios (sal + hash) en usuarios.json
+    registro.py        ventana de registro: nombre y clave de 4 símbolos
+    secuencia.py       máquina de estados de la entrada (símbolos, fallos, bloqueo)
+    acceso.py          ventana del nombre, panel con la secuencia y usuario en pantalla
 patrones/            los cuatro símbolos en PNG
+usuarios.json        usuarios registrados (local, no se sube a GitHub)
 C1-C2 - .../         calibración de la cámara (se ejecuta una vez)
 requirements.txt     dependencias con versiones fijas
 ```
