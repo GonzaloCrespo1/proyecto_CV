@@ -10,6 +10,8 @@ En desarrollo. Ya funciona:
 
 La secuencia de símbolos y el control de acceso se añaden en el siguiente bloque.
 
+La documentación técnica de cada bloque está en la carpeta del proyecto (ver «Documentación»).
+
 ## Requisitos
 - Python 3
 - Webcam (probado con la del portátil, en Windows)
@@ -58,6 +60,15 @@ patrones/            los cuatro símbolos en PNG
 C1-C2 - .../         calibración de la cámara (se ejecuta una vez)
 requirements.txt     dependencias con versiones fijas
 ```
+
+## Documentación
+```
+FlexScan_Plan_de_trabajo.pdf                       plan por bloques y estado
+FlexScan_C1-C2_Calibracion_y_preparacion.pdf       cuaderno técnico: calibración y preparación
+FlexScan_C3-C4_Deteccion_de_patrones.pdf           cuaderno técnico: cámara y detección de patrones
+FlexScan_Explicaciones_tecnicas.docx               cuaderno técnico en curso (C5 en adelante)
+```
+Cada grupo de bloques cerrado se pasa a su propio PDF y el Word queda libre para el siguiente.
 
 ## Calibración
 La cámara se calibró con 19 fotos de un damero (9×6 esquinas, cuadro de 23 mm), con un error RMS de 1,52 px. Los parámetros se guardan en `calibracion.npz`, único fichero que el programa necesita de esa fase. Si se cambia de cámara o de resolución, hay que recalibrar y sustituirlo.
