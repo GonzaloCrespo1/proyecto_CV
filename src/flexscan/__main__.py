@@ -1,6 +1,7 @@
 """Punto de entrada del programa: python -m flexscan"""
 import cv2
 
+from flexscan.rasgos import anotar, dibujar_rasgos, medir_rasgos
 from flexscan.calibracion import Corrector, RUTA_CALIBRACION
 from flexscan.camara import abrir_camara
 from flexscan.fps import ContadorFPS
@@ -34,14 +35,15 @@ def main():
         if ver_mascara:
             cv2.imshow("Mascara", mascara)
         
-        if ver_tarjeta:                                                   
+        if ver_tarjeta:
             esquinas = buscar_marco(mascara)
             if esquinas is None:
-                cv2.imshow("Tarjeta", TARJETA_VACIA)
+                cv2.imshow("Tarjeta", anotar(TARJETA_VACIA, ("sin tarjeta",)))   
             else:
-                cv2.imshow("Tarjeta", enderezar(frame, esquinas))
-                dibujar_marco(frame, esquinas) 
-    
+                tarjeta = enderezar(frame, esquinas)                             
+                rasgos, formas = medir_rasgos(tarjeta)                           
+                cv2.imshow("Tarjeta", dibujar_rasgos(tarjeta, rasgos, formas))    
+                dibujar_marco(frame, esquinas)
             
         fps = contador.actualizar()  
         modo = "CORREGIDA" if corregir else "ORIGINAL"
