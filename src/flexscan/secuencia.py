@@ -30,6 +30,12 @@ class Secuencia:
         """Empieza un intento nuevo. No borra los fallos ni obliga a retirar la tarjeta."""
         self.estado = ESPERANDO
         self.simbolos = []
+        
+    def segundos_bloqueo(self, ahora):                                    
+        """Segundos que faltan para que acabe el bloqueo (0 si no está bloqueado)."""   
+        if self.estado != BLOQUEADO:                                      
+            return 0.0                                                    
+        return max(0.0, TIEMPO_BLOQUEO - (ahora - self._t_cambio))        
 
     def actualizar(self, simbolo, ahora):
         """simbolo: None (sin tarjeta), DESCONOCIDO o un símbolo. ahora: tiempo en segundos."""
