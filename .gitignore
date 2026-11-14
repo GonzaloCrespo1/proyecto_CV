@@ -22,3 +22,6 @@ Thumbs.db
 *.bbl
 *.bcf
 *-SAVE-ERROR
+
+# Usuarios registrados (datos locales)
+usuarios.json
