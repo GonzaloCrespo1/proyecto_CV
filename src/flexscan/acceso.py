@@ -128,4 +128,13 @@ def iniciar_acceso(anterior=None):
     if anterior is not None and (usuarios.normalizar(anterior.nombre)        
                                  == usuarios.normalizar(nombre)):            
         nueva.intentos = anterior.intentos                                   
-    return nueva                                                             
+    return nueva                               
+
+def dibujar_usuario(frame, nombre):                                                       
+    """Escribe, discretamente y arriba a la derecha, el usuario que tiene la sesión abierta."""   
+    texto = f"Usuario: {nombre}"                                                           
+    (ancho_texto, _), _ = cv2.getTextSize(texto, FUENTE, 0.6, 1)                            
+    x1, y1 = frame.shape[1] - 10, 38                                                       
+    x0, y0 = x1 - ancho_texto - 16, 10                                                      
+    frame[y0:y1, x0:x1] = (frame[y0:y1, x0:x1] * 0.4).astype(np.uint8)    # fondo oscuro    
+    cv2.putText(frame, texto, (x0 + 8, y1 - 10), FUENTE, 0.6, BLANCO, 1)                                                  

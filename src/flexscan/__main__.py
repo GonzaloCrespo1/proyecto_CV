@@ -3,7 +3,7 @@ import cv2
 import time
 
 
-from flexscan.acceso import dibujar_acceso, iniciar_acceso 
+from flexscan.acceso import dibujar_acceso, iniciar_acceso, dibujar_usuario
 from flexscan.calibracion import Corrector, RUTA_CALIBRACION
 from flexscan.camara import abrir_camara
 from flexscan.clasificador import DESCONOCIDO, clasificar   
@@ -21,12 +21,15 @@ def main():
     cap = abrir_camara()
     corrector = Corrector(RUTA_CALIBRACION)
     contador = ContadorFPS()
-    estabilizador = Estabilizador()                          
+    estabilizador = Estabilizador()       
+                       
     corregir = True
     ver_mascara = False
     ver_tarjeta = False
     acceso = None
-    print("Teclas: 'c' corregida, 'm' máscara, 't' tarjeta, 'r' registro, 'e' entrar, 'q' salir") 
+    usuario = None 
+    
+    print("Teclas: 'c' corregida, 'm' máscara, 't' tarjeta, 'r' registro, 'e' entrar, 's' cerrar sesión, 'q' salir") 
     
 
     while True:
@@ -51,9 +54,13 @@ def main():
         simbolo = estabilizador.actualizar(lectura)          
 
         
-        ahora = time.monotonic()                               
+        ahora = time.monotonic()   
+                                    
         if acceso is not None:                                  
             acceso.actualizar(simbolo, ahora) 
+            if acceso.sesion_lista(ahora):
+                usuario = acceso.nombre
+                acceso = None
             
             
         if ver_mascara:
@@ -78,6 +85,9 @@ def main():
             
         if acceso is not None:                                 
             dibujar_acceso(frame, acceso, ahora)     
+            
+        if usuario is not None:                                                     
+            dibujar_usuario(frame, usuario)
 
         cv2.imshow("FlexScan", frame)
 
@@ -98,11 +108,13 @@ def main():
             if pedir_registro():                                    
                 print("Usuario registrado")                        
             estabilizador = Estabilizador()         
-        if tecla == ord("e"):                                   
+        if tecla == ord("e") and usuario is None:                                   
             nuevo = iniciar_acceso(acceso)                      
             if nuevo is not None:                               
                 acceso = nuevo                                  
-            estabilizador = Estabilizador()                
+            estabilizador = Estabilizador()
+        if tecla == ord("s"):
+            usuario = None               
         
 
     cap.release()

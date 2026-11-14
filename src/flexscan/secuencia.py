@@ -12,6 +12,7 @@ TIEMPO_MAX = 10.0        # segundos máximos entre dos símbolos antes de empeza
 PAUSA_RESULTADO = 2.0    # segundos que se muestra "denegado" antes de volver a empezar
 MAX_INTENTOS = 3         # fallos seguidos antes de bloquear
 TIEMPO_BLOQUEO = 30.0    # segundos de bloqueo
+PAUSA_CONCEDIDO = 3.0    # segundos que se muestra "concedido" antes de abrir la sesión
 
 
 class Secuencia:
@@ -37,6 +38,10 @@ class Secuencia:
             return 0.0                                                    
         return max(0.0, TIEMPO_BLOQUEO - (ahora - self._t_cambio))        
 
+    def sesion_lista(self, ahora):                                                         
+        """True cuando el acceso está concedido y el mensaje ya se ha mostrado el tiempo suficiente."""   
+        return self.estado == CONCEDIDO and ahora - self._t_cambio >= PAUSA_CONCEDIDO  
+        
     def actualizar(self, simbolo, ahora):
         """simbolo: None (sin tarjeta), DESCONOCIDO o un símbolo. ahora: tiempo en segundos."""
         if self.estado == CONCEDIDO:
