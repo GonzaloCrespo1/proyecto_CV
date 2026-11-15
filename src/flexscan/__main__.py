@@ -18,7 +18,8 @@ from flexscan.fondo import Fondo
 from flexscan.silueta import limpiar
 from flexscan.seguimiento import Seguidor
 from flexscan.grafica import GraficaGanancia
-from flexscan.zona import (AMARILLO, FRAMES_CONFIRMACION, ROJO, caja_colocacion,
+from flexscan.quietud import Quietud
+from flexscan.zona import (AMARILLO, FRAMES_CONFIRMACION, ROJO, VERDE, caja_colocacion,
                            dibujar_caja, esta_dentro)
 
 def main():
@@ -28,6 +29,7 @@ def main():
     estabilizador = Estabilizador()   
     fondo = Fondo()
     seguidor = Seguidor() 
+    quietud = Quietud()
     grafica = GraficaGanancia()
                        
     corregir = True
@@ -56,6 +58,7 @@ def main():
         if primer_plano is not None:
             silueta, caja, centro = limpiar(primer_plano)
         estimado = seguidor.actualizar(centro) 
+        quieta = quietud.actualizar(estimado)
         grafica.anadir(seguidor.ganancia)
         caja_zona = caja_colocacion(frame.shape)
         dentro = esta_dentro(estimado[:2] if estimado is not None else None,
@@ -134,7 +137,14 @@ def main():
         if usuario is not None:                                                     
             dibujar_usuario(frame, usuario)
 
-        dibujar_caja(frame, caja_zona, AMARILLO if colocado else ROJO)
+        if colocado and quieta:
+            color = VERDE
+            cv2.putText(frame, "COMENZAR ESTIRAMIENTO",
+                        (caja_zona[0] + 20, caja_zona[1] + 50),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1.2, VERDE, 3)
+        else:
+            color = AMARILLO if colocado else ROJO
+        dibujar_caja(frame, caja_zona, color)
 
         cv2.imshow("FlexScan", frame)
 

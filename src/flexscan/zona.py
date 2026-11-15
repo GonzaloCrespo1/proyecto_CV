@@ -10,6 +10,7 @@ HUECO = 12                 # separación entre rayas (px)
 FRAMES_CONFIRMACION = 5    # fotogramas seguidos dentro antes de pasar a amarillo
 ROJO = (0, 0, 255)         # BGR
 AMARILLO = (0, 255, 255)
+VERDE = (0, 255, 0)
 
 
 def caja_colocacion(forma):
