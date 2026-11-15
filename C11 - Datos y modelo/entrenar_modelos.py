@@ -2,7 +2,10 @@
 
 Para cada ejercicio (sit-and-reach, apertura de piernas y elevación de brazo) se buscan los
 hiperparámetros de cada modelo candidato con validación cruzada sobre el 80 % de los datos.
-El 20 % de test se aparta al principio, el mismo para los tres ejercicios, y no se usa aquí.
+El 20 % de test se aparta al principio, el mismo para los tres ejercicios, y solo se usa al
+final: cada modelo, reentrenado con todo el 80 %, se evalúa una vez en test. Con un bootstrap
+emparejado se decide qué modelos no son peores que el mejor y, entre ellos, se elige el más
+sencillo (parsimonia). Por último se calcula sigma, la dispersión de los residuos en test.
 
 Uso (desde la raíz del repositorio):
     python "C11 - Datos y modelo/entrenar_modelos.py"
@@ -28,6 +31,7 @@ DATOS = CARPETA / "datos" / "dataset_sintetico.csv"
 SEMILLA = 2026
 FRACCION_TEST = 0.20
 PLIEGUES = KFold(n_splits=5, shuffle=True, random_state=SEMILLA)
+REMUESTREOS = 1000
 
 ENTRADAS = ["edad", "altura_cm", "peso_kg", "sexo"]
 EJERCICIOS = {
@@ -96,14 +100,62 @@ def resumen(busqueda):
     }
 
 
+def bootstrap_rmse(errores, rng):
+    """RMSE de cada modelo en REMUESTREOS remuestreos del test. Todos los modelos usan los
+    mismos remuestreos (bootstrap emparejado), así sus diferencias se pueden comparar."""
+    n = len(next(iter(errores.values())))
+    indices = rng.integers(0, n, size=(REMUESTREOS, n))
+    return {nombre: np.sqrt((e[indices] ** 2).mean(axis=1)) for nombre, e in errores.items()}
+
+
+def elegir(errores, rng):
+    """Compara cada modelo con el de menor RMSE en test mediante el intervalo del 95 % de la
+    diferencia de RMSE. Devuelve la tabla y el modelo más sencillo cuyo intervalo contiene el
+    0 (no es significativamente peor). El orden de candidatos() es el orden de sencillez."""
+    rmse_test = {nombre: float(np.sqrt((e ** 2).mean())) for nombre, e in errores.items()}
+    mejor = min(rmse_test, key=rmse_test.get)
+    remuestreos = bootstrap_rmse(errores, rng)
+    tabla, elegido = {}, None
+    for nombre in errores:
+        diferencia = remuestreos[nombre] - remuestreos[mejor]
+        bajo, alto = np.percentile(diferencia, [2.5, 97.5])
+        empata = bajo <= 0
+        tabla[nombre] = (rmse_test[nombre], bajo, alto, empata)
+        if empata and elegido is None:
+            elegido = nombre
+    return tabla, mejor, elegido
+
+
 if __name__ == "__main__":
     entreno, test = cargar_y_partir()
+    rng = np.random.default_rng(SEMILLA)
     print(f"entrenamiento: {len(entreno)} personas   test (apartado): {len(test)} personas")
+    sigmas = {}
     for ejercicio, columna in EJERCICIOS.items():
         X, y = entreno[ENTRADAS], entreno[columna]
+        X_test, y_test = test[ENTRADAS], test[columna]
         print(f"\n== {ejercicio} ({columna}) · media {y.mean():.1f} · desv. típica {y.std():.1f}")
         print(f"{'modelo':<14}{'RMSE (CV)':>12}{'± pliegues':>12}{'MAE':>8}{'R²':>8}  mejores hiperparámetros")
+        errores = {}
         for nombre, (modelo, rejilla) in candidatos().items():
-            m = resumen(buscar(modelo, rejilla, X, y))
+            busqueda = buscar(modelo, rejilla, X, y)
+            m = resumen(busqueda)
             print(f"{nombre:<14}{m['rmse']:>12.2f}{m['rmse_desv']:>12.2f}{m['mae']:>8.2f}"
                   f"{m['r2']:>8.3f}  {m['mejores']}")
+            # GridSearchCV ya ha reentrenado la mejor combinación con todo el 80 %.
+            errores[nombre] = (y_test - busqueda.predict(X_test)).to_numpy()
+
+        tabla, mejor, elegido = elegir(errores, rng)
+        print(f"\n   examen en test ({len(test)} personas) · diferencia de RMSE frente a {mejor}, IC 95 %")
+        print(f"{'modelo':<14}{'RMSE test':>12}{'IC 95 %':>20}  ¿empata con el mejor?")
+        for nombre, (rmse, bajo, alto, empata) in tabla.items():
+            marca = "sí" if empata else "no (peor)"
+            print(f"{nombre:<14}{rmse:>12.2f}{f'[{bajo:+.2f}, {alto:+.2f}]':>20}  {marca}")
+        residuos = errores[elegido]
+        sigmas[ejercicio] = float(residuos.std(ddof=1))
+        print(f"   elegido por parsimonia: {elegido} · sesgo medio {residuos.mean():+.2f}"
+              f" · sigma {sigmas[ejercicio]:.2f}")
+
+    print("\n== resumen: sigma por ejercicio (desviación típica de los residuos en test)")
+    for ejercicio, sigma in sigmas.items():
+        print(f"{ejercicio:<12}{sigma:>8.2f} {'cm' if ejercicio == 'sit_reach' else 'grados'}")
