@@ -18,6 +18,8 @@ from flexscan.fondo import Fondo
 from flexscan.silueta import limpiar
 from flexscan.seguimiento import Seguidor
 from flexscan.grafica import GraficaGanancia
+from flexscan.zona import (AMARILLO, FRAMES_CONFIRMACION, ROJO, caja_colocacion,
+                           dibujar_caja, esta_dentro)
 
 def main():
     cap = abrir_camara()
@@ -33,6 +35,7 @@ def main():
     ver_tarjeta = False
     ver_silueta = False
     ver_deteccion = False
+    seguidos = 0
     acceso = None
     usuario = None 
     
@@ -54,6 +57,11 @@ def main():
             silueta, caja, centro = limpiar(primer_plano)
         estimado = seguidor.actualizar(centro) 
         grafica.anadir(seguidor.ganancia)
+        caja_zona = caja_colocacion(frame.shape)
+        dentro = esta_dentro(estimado[:2] if estimado is not None else None,
+                             caja_zona)
+        seguidos = seguidos + 1 if dentro and centro is not None else 0
+        colocado = seguidos >= FRAMES_CONFIRMACION
 
         mascara = None
         esquinas = None
@@ -125,6 +133,8 @@ def main():
             
         if usuario is not None:                                                     
             dibujar_usuario(frame, usuario)
+
+        dibujar_caja(frame, caja_zona, AMARILLO if colocado else ROJO)
 
         cv2.imshow("FlexScan", frame)
 
