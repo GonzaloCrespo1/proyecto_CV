@@ -17,6 +17,7 @@ from flexscan.registro import pedir_registro
 from flexscan.fondo import Fondo 
 from flexscan.silueta import limpiar
 from flexscan.seguimiento import Seguidor
+from flexscan.grafica import GraficaGanancia
 
 def main():
     cap = abrir_camara()
@@ -25,6 +26,7 @@ def main():
     estabilizador = Estabilizador()   
     fondo = Fondo()
     seguidor = Seguidor() 
+    grafica = GraficaGanancia()
                        
     corregir = True
     ver_mascara = False
@@ -51,6 +53,7 @@ def main():
         if primer_plano is not None:
             silueta, caja, centro = limpiar(primer_plano)
         estimado = seguidor.actualizar(centro) 
+        grafica.anadir(seguidor.ganancia)
 
         mascara = None
         esquinas = None
@@ -103,6 +106,8 @@ def main():
         if ver_deteccion and estimado is not None:   
             cv2.drawMarker(frame, (int(estimado[0]), int(estimado[1])),    
                            (255, 0, 0), cv2.MARKER_CROSS, 30, 2) 
+        if ver_deteccion:
+            cv2.imshow("Ganancia K", grafica.dibujar())
             
         if fondo.aprendiendo:                             
             cv2.putText(frame, f"Aprendiendo fondo: {fondo.restantes}",   
@@ -155,6 +160,8 @@ def main():
                 cv2.destroyWindow("Silueta")
         if tecla == ord("v"):
             ver_deteccion = not ver_deteccion
+            if not ver_deteccion:
+                cv2.destroyWindow("Ganancia K")
         
 
     cap.release()

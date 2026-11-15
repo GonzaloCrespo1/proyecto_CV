@@ -24,9 +24,11 @@ class Seguidor:
         self.kf.measurementNoiseCov = VAR_MEDIDA * np.eye(2, dtype=np.float32)  # Q_t
         self.iniciado = False
         self.perdidos = 0
+        self.ganancia = None        # (K posición, K velocidad) del último fotograma
 
     def actualizar(self, centro):
         """Recibe el centro medido (u, v) o None; devuelve (u, v, du, dv) o None."""
+        self.ganancia = None        # solo hay ganancia si se corrige
         if centro is None:
             self.perdidos += 1
             if not self.iniciado or self.perdidos > MAX_PERDIDOS:
@@ -45,4 +47,7 @@ class Seguidor:
         self.perdidos = 0
         self.kf.predict()
         medida = np.array([[centro[0]], [centro[1]]], np.float32)
-        return tuple(float(x) for x in self.kf.correct(medida)[:, 0])
+        estado = self.kf.correct(medida)
+        K = self.kf.gain
+        self.ganancia = ((K[0, 0] + K[1, 1]) / 2, (K[2, 0] + K[3, 1]) / 2)
+        return tuple(float(x) for x in estado[:, 0])
