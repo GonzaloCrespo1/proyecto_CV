@@ -15,6 +15,7 @@ from flexscan.tarjeta import (TARJETA_VACIA, buscar_marco, dibujar_marco,
                               enderezar)
 from flexscan.registro import pedir_registro  
 from flexscan.fondo import Fondo 
+from flexscan.silueta import limpiar
 
 
 def main():
@@ -85,7 +86,8 @@ def main():
         
         
         if primer_plano is not None:                      
-            cv2.imshow("Primer plano", primer_plano)      
+            cv2.imshow("Primer plano", primer_plano)   
+            cv2.imshow("Silueta", limpiar(primer_plano))   
         if fondo.aprendiendo:                             
             cv2.putText(frame, f"Aprendiendo fondo: {fondo.restantes}",   
                         (10, 110), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 165, 255), 2)   
