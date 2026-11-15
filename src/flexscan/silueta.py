@@ -12,18 +12,25 @@ ELEMENTO_CIERRE = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,
 
 
 def mayor_componente(binaria):
-    """Deja solo la mancha blanca de mayor área (o todo negro si no hay)."""
-    n, etiquetas, stats, _ = cv2.connectedComponentsWithStats(binaria)
+    """Devuelve (máscara, caja, centro) de la mancha de mayor área.
+
+    Si no hay ninguna lo bastante grande: (máscara negra, None, None).
+    """
+    n, etiquetas, stats, centroides = cv2.connectedComponentsWithStats(binaria)
     if n < 2:                      # solo existe el fondo
-        return np.zeros_like(binaria)
+        return np.zeros_like(binaria), None, None
     mayor = 1 + np.argmax(stats[1:, cv2.CC_STAT_AREA])   # la etiqueta 0 es el fondo
     if stats[mayor, cv2.CC_STAT_AREA] < AREA_MINIMA:
-        return np.zeros_like(binaria)
-    return np.where(etiquetas == mayor, 255, 0).astype(np.uint8)
+        return np.zeros_like(binaria), None, None
+    mascara = np.where(etiquetas == mayor, 255, 0).astype(np.uint8)
+    x, y, ancho, alto = stats[mayor, :4]       # izquierda, arriba, ancho, alto
+    caja = (int(x), int(y), int(ancho), int(alto))
+    centro = (float(centroides[mayor][0]), float(centroides[mayor][1]))
+    return mascara, caja, centro
 
 
 def limpiar(primer_plano):
-    """Recibe la máscara de MOG2 (0, 127, 255) y devuelve solo la persona."""
+    """Recibe la máscara de MOG2 (0, 127, 255) y devuelve (silueta, caja, centro)."""
     # Quedarse solo con el primer plano seguro (255) y descartar sombras (127)
     _, binaria = cv2.threshold(primer_plano, 200, 255, cv2.THRESH_BINARY)
     # Apertura: erosión y dilatación, elimina puntos sueltos y líneas finas

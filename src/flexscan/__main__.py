@@ -28,10 +28,12 @@ def main():
     corregir = True
     ver_mascara = False
     ver_tarjeta = False
+    ver_silueta = False
+    ver_deteccion = False
     acceso = None
     usuario = None 
     
-    print("Teclas: 'c' corregida, 'm' máscara, 't' tarjeta, 'r' registro, 'e' entrar, 's' cerrar sesión, 'q' salir") 
+    print("Teclas: 'c' corregida, 'm' máscara, 't' tarjeta, 'r' registro, 'e' entrar, 's' cerrar sesión, 'f' aprender fondo, 'b' silueta, 'v' caja y centro, 'q' salir") 
     
 
     while True:
@@ -44,6 +46,9 @@ def main():
             frame = corrector.corregir(frame)
             
         primer_plano = fondo.aplicar(frame)
+        silueta, caja, centro = None, None, None
+        if primer_plano is not None:
+            silueta, caja, centro = limpiar(primer_plano)
 
         mascara = None
         esquinas = None
@@ -85,9 +90,13 @@ def main():
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
         
         
-        if primer_plano is not None:                      
-            cv2.imshow("Primer plano", primer_plano)   
-            cv2.imshow("Silueta", limpiar(primer_plano))   
+        if ver_silueta and silueta is not None:
+            cv2.imshow("Silueta", silueta)
+        if ver_deteccion and caja is not None:
+            x, y, ancho, alto = caja
+            cv2.rectangle(frame, (x, y), (x + ancho, y + alto), (0, 255, 0), 2)
+            cv2.drawMarker(frame, (int(centro[0]), int(centro[1])), (0, 0, 255),
+                           cv2.MARKER_CROSS, 30, 2)
         if fondo.aprendiendo:                             
             cv2.putText(frame, f"Aprendiendo fondo: {fondo.restantes}",   
                         (10, 110), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 165, 255), 2)   
@@ -133,6 +142,12 @@ def main():
             usuario = None          
         if tecla == ord("f"):
             fondo.aprender()     
+        if tecla == ord("b"):
+            ver_silueta = not ver_silueta
+            if not ver_silueta:
+                cv2.destroyWindow("Silueta")
+        if tecla == ord("v"):
+            ver_deteccion = not ver_deteccion
         
 
     cap.release()
