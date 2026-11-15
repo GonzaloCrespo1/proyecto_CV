@@ -14,6 +14,7 @@ PUNTOS = {11: "hombro_i", 12: "hombro_d", 15: "muneca_i", 16: "muneca_d",
           19: "dedo_i", 20: "dedo_d", 23: "cadera_i", 24: "cadera_d",
           27: "tobillo_i", 28: "tobillo_d", 31: "pie_i", 32: "pie_d"}
 VISIBILIDAD_MIN = 0.5      # por debajo, el punto se considera poco fiable
+K_YEMA = 1.64              # prolongación muñeca -> nudillo hasta la yema (12 muestras)
 
 
 class DetectorPose:
@@ -38,6 +39,24 @@ class DetectorPose:
                 for i, nombre in PUNTOS.items()}
 
 
+def mejor_punto(puntos, parte):
+    """Punto de la parte ('dedo', 'pie', 'tobillo'...) del lado con mayor visibilidad."""
+    izquierdo, derecho = puntos.get(parte + "_i"), puntos.get(parte + "_d")
+    if izquierdo is None or derecho is None:
+        return None
+    return izquierdo if izquierdo[2] >= derecho[2] else derecho
+
+
+def punta_dedo(puntos):
+    """Estima la yema del dedo del lado más visible: (x, y, visibilidad) o None."""
+    if not puntos:
+        return None
+    lado = "i" if puntos["dedo_i"][2] >= puntos["dedo_d"][2] else "d"
+    xi, yi, vi = puntos["dedo_" + lado]
+    xm, ym, vm = puntos["muneca_" + lado]
+    return (xi + K_YEMA * (xi - xm), yi + K_YEMA * (yi - ym), min(vi, vm))
+
+
 def dibujar_puntos(frame, puntos):
     """Dibuja cada punto con su nombre y visibilidad (solo para depurar)."""
     for nombre, (x, y, visibilidad) in puntos.items():
@@ -45,3 +64,7 @@ def dibujar_puntos(frame, puntos):
         cv2.circle(frame, (int(x), int(y)), 7, color, -1)
         cv2.putText(frame, f"{nombre} {visibilidad:.2f}", (int(x) + 8, int(y)),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
+    punta = punta_dedo(puntos)
+    if punta is not None:
+        cv2.drawMarker(frame, (int(punta[0]), int(punta[1])), (255, 0, 255),
+                       cv2.MARKER_TILTED_CROSS, 25, 3)
