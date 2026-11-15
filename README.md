@@ -9,7 +9,11 @@ En desarrollo. Ya funciona:
 - el **detector de patrones**: localiza la tarjeta en el vídeo, la pone de frente y reconoce cuál de los cuatro símbolos es (círculos concéntricos, triángulo, barras o hexágono). El símbolo detectado aparece sobre la imagen cuando se mantiene estable durante 5 fotogramas;
 - el **control de acceso** con una secuencia de cuatro patrones: registro de usuarios (nombre y clave visual), entrada enseñando las tarjetas a la cámara en orden, bloqueo tras tres fallos seguidos y sesión abierta con el usuario en pantalla.
 
-Queda por construir la evaluación de la flexibilidad con la cámara.
+- el **tracker** de la persona: aprende el fondo con MOG2 y lo congela, extrae su silueta (la componente conexa mayor), sigue su centroide con un **filtro de Kalman** de velocidad constante y dibuja una **caja punteada de colocación** que es roja sin persona, amarilla cuando entra y verde con el mensaje «COMENZAR ESTIRAMIENTO» cuando está quieta (velocidad estimada por debajo de 0,5 px/fotograma durante 15 fotogramas, umbral medido con datos reales).
+
+Queda por construir la medida de la flexibilidad (puntos clave y ángulos) y la sesión completa.
+
+**Nota.** De momento la caja y el estado verde se muestran siempre, para poder depurar sin registrarse cada vez. En la integración final solo funcionarán con la sesión iniciada.
 
 La documentación técnica de cada bloque está en la carpeta del proyecto (ver «Documentación»).
 
@@ -37,6 +41,9 @@ Teclas:
 | **c** | alterna entre imagen corregida y original |
 | **m** | muestra u oculta la máscara binaria |
 | **t** | muestra u oculta la tarjeta enderezada con sus rasgos |
+| **f** | vuelve a aprender el fondo (hacerlo con la escena vacía) |
+| **b** | muestra u oculta la silueta limpia (primer plano) |
+| **v** | muestra u oculta la caja, el centroide y la estimación de Kalman |
 | **r** | abre la ventana para registrar un usuario nuevo (nombre y clave de 4 símbolos) |
 | **e** | entrar: pide el nombre y después hay que enseñar a la cámara los cuatro símbolos de la clave, en orden |
 | **s** | cierra la sesión abierta |
@@ -46,6 +53,14 @@ Teclas:
 1. Imprime o dibuja una tarjeta con uno de los símbolos de la carpeta `patrones/`, **con su marco negro**, sobre papel blanco.
 2. Enséñala a la cámara con buena luz. Puede ir girada o inclinada.
 3. Cuando el símbolo se mantiene estable aparece en pantalla como `Simbolo: ...`. Si lo que se ve no encaja con ninguno, pone `desconocido`.
+
+## Cómo se usa el tracker
+1. Al arrancar, deja la escena **vacía** unos segundos: el programa aprende el fondo (con **f** se repite).
+2. Entra en la escena. Aparece la caja punteada de colocación, **roja** mientras no haya nadie dentro.
+3. Colócate dentro de la caja: pasa a **amarilla** tras 5 fotogramas seguidos dentro.
+4. Quédate quieto: con unos 0,6 s sin moverte pasa a **verde** y sale «COMENZAR ESTIRAMIENTO». Si te mueves, vuelve a amarilla.
+
+Parámetros ajustables (constantes al inicio de cada módulo): tamaño de la caja y grosor del trazo (`zona.py`), fotogramas de confirmación (`zona.py`), umbrales de quietud y fotogramas necesarios (`quietud.py`), área mínima de la silueta (`silueta.py`) y ruidos del filtro de Kalman (`seguimiento.py`). El umbral de quietud depende de los FPS y de la distancia a la cámara, así que habrá que revisarlo si cambia el montaje. Una superficie clara cercana puede unirse a la silueta y el fondo congelado falla ante cambios bruscos de luz; en ambos casos se repite el aprendizaje con **f**.
 
 ## Cómo se usa el control de acceso
 1. **Registrarse.** Pulsa **r**, escribe el nombre y pulsa en orden los cuatro símbolos de la clave (se pueden repetir). Después, «Guardar».
@@ -79,8 +94,15 @@ src/flexscan/
     registro.py        ventana de registro: nombre y clave de 4 símbolos
     secuencia.py       máquina de estados de la entrada (símbolos, fallos, bloqueo)
     acceso.py          ventana del nombre, panel con la secuencia y usuario en pantalla
+    fondo.py           aprendizaje y congelado del fondo (MOG2)
+    silueta.py         umbral, apertura, cierre y componente conexa mayor
+    seguimiento.py     filtro de Kalman de velocidad constante sobre el centroide
+    grafica.py         ventana con la ganancia de Kalman en tiempo real
+    zona.py            caja punteada de colocación y sus estados
+    quietud.py         decide si la persona está quieta (umbral con histéresis)
 patrones/            los cuatro símbolos en PNG
 usuarios.json        usuarios registrados (local, no se sube a GitHub)
+datos/               datos_velocidad.csv: toma real con la que se fijó el umbral de quietud
 C1-C2 - .../         calibración de la cámara (se ejecuta una vez)
 requirements.txt     dependencias con versiones fijas
 ```
@@ -91,7 +113,8 @@ FlexScan_Plan_de_trabajo.pdf                       plan por bloques y estado
 FlexScan_C1-C2_Calibracion_y_preparacion.pdf       cuaderno técnico: calibración y preparación
 FlexScan_C3-C4_Deteccion_de_patrones.pdf           cuaderno técnico: cámara y detección de patrones
 FlexScan_C5_Seguridad.pdf                          cuaderno técnico: control de acceso
-FlexScan_Explicaciones_tecnicas.docx               cuaderno técnico en curso (C6 en adelante)
+FlexScan_C6_Tracker.pdf                            cuaderno técnico: tracker y caja de colocación
+FlexScan_Explicaciones_tecnicas.docx               cuaderno técnico en curso (C7 en adelante)
 ```
 Cada grupo de bloques cerrado se pasa a su propio PDF y el Word queda libre para el siguiente.
 
