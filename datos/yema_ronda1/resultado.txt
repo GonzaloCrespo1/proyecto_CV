@@ -1,0 +1,14 @@
+Ronda 1 de calibracion de la yema del dedo (sit-and-reach de lado, 15 nov 2026)
+Metodo: tip = ind + k (ind - mun), con k medido en cada muestra (calibrar_k.py).
+Las capturas muestran el punto "dedo" del modelo, la muneca y el aspa naranja con la yema marcada a mano.
+
+muestra 1: k = 1.86   (|nudillo-muneca| = 22 px)
+muestra 2: k = 1.49   (|nudillo-muneca| = 29 px)
+muestra 3: k = 1.70   (|nudillo-muneca| = 21 px)
+muestra 4: k = 3.13   (|nudillo-muneca| = 24 px)
+muestra 5: k = 2.25   (|nudillo-muneca| = 24 px)
+muestra 6: k = 0.65   (|nudillo-muneca| = 33 px)
+muestra 7: k = 1.99   (|nudillo-muneca| = 26 px)
+
+k mediana = 1.86   media = 1.87   desviacion = 0.70   n = 7
+Conclusion: con 7 muestras la dispersion de k es grande (37 %); se repite con coordenadas guardadas (ronda 2).
