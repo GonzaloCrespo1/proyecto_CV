@@ -14,14 +14,15 @@ from flexscan.rasgos import anotar, dibujar_rasgos, medir_rasgos
 from flexscan.tarjeta import (TARJETA_VACIA, buscar_marco, dibujar_marco,
                               enderezar)
 from flexscan.registro import pedir_registro  
-
+from flexscan.fondo import Fondo 
 
 
 def main():
     cap = abrir_camara()
     corrector = Corrector(RUTA_CALIBRACION)
     contador = ContadorFPS()
-    estabilizador = Estabilizador()       
+    estabilizador = Estabilizador()   
+    fondo = Fondo()    
                        
     corregir = True
     ver_mascara = False
@@ -40,6 +41,8 @@ def main():
 
         if corregir:
             frame = corrector.corregir(frame)
+            
+        primer_plano = fondo.aplicar(frame)
 
         mascara = None
         esquinas = None
@@ -79,6 +82,15 @@ def main():
         modo = "CORREGIDA" if corregir else "ORIGINAL"
         cv2.putText(frame, f"{modo}  FPS: {fps:.1f}", (10, 30),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+        
+        
+        if primer_plano is not None:                      
+            cv2.imshow("Primer plano", primer_plano)      
+        if fondo.aprendiendo:                             
+            cv2.putText(frame, f"Aprendiendo fondo: {fondo.restantes}",   
+                        (10, 110), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 165, 255), 2)   
+        
+        
 
         if simbolo is not None and acceso is None:                                        
             color = (0, 255, 0) if simbolo != DESCONOCIDO else (0, 165, 255)   
@@ -116,7 +128,9 @@ def main():
                 acceso = nuevo                                  
             estabilizador = Estabilizador()
         if tecla == ord("s"):
-            usuario = None               
+            usuario = None          
+        if tecla == ord("f"):
+            fondo.aprender()     
         
 
     cap.release()
