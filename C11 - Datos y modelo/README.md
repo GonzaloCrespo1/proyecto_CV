@@ -1,15 +1,31 @@
-# C11 · Datos sintéticos y modelo del índice esperado
+# C11 · Conjunto de datos sintético y modelos del valor esperado
 
-Carpeta del bloque C11 (Gonzalo Crespo Comín). Contiene todo lo necesario para **crear el conjunto de datos sintético y elegir el modelo** que estima el índice de flexibilidad esperado Î (0–100) a partir de la edad, la altura, el peso y el sexo. No forma parte de la visión por ordenador y no depende del resto del programa.
+Carpeta del bloque C11 (Gonzalo Crespo Comín). Contiene lo necesario para **crear el conjunto de datos** y **entrenar los tres modelos** que estiman, para una persona de cierta edad, altura, peso y sexo, el resultado esperado en cada ejercicio de FlexScan:
+
+| Ejercicio | Columna | Unidad |
+|---|---|---|
+| Sit-and-reach (sentado) | `sit_reach_cm` | cm respecto a la punta de los pies |
+| Apertura de piernas (de pie) | `apertura_piernas_grados` | grados entre las dos piernas |
+| Elevación de brazo (de perfil) | `elevacion_brazo_grados` | grados; 0 = brazo junto al cuerpo |
+
+## Ficheros
 
 | Ruta | Contenido |
 |---|---|
-| `dataset_sintetico.py` | Generador reproducible (semilla fija) del conjunto de datos. |
-| `modelo_indice.py` | Partición 80/20, búsqueda de hiperparámetros, evaluación en test, elección del modelo y guardado. |
-| `datos/` | CSV generado. |
-| `modelos/` | Modelo elegido (`indice_esperado.joblib`), con σ, versiones y semilla. |
-| `figuras/` | Gráficas de validación. |
+| `preparar_datos.py` | Limpia el conjunto de Kaggle (solo se usa su correlación IMC – sit-and-reach). |
+| `generar_dataset.py` | Genera `datos/dataset_sintetico.csv` (semilla fija). |
+| `fuentes/DEMO_L.xpt`, `fuentes/BMX_L.xpt` | NHANES 2021–2023: edad, sexo, altura y peso (dominio público). |
+| `fuentes/DU4111.txt` | NHANES I 1971–75, fichero 4111: abducción de cadera (dominio público). |
+| `datos/dataset_sintetico.csv` | Conjunto final: 4663 personas, 7 columnas. |
+| `modelos/`, `figuras/` | Se crearán al entrenar los modelos. |
 
-El programa principal solo usa `src/flexscan/esperado.py`, que carga el modelo guardado aquí.
+## Cómo regenerar el conjunto
 
-Dependencias (solo para esta carpeta, aún no están en `requirements.txt`): `scikit-learn==1.9.1`, `scipy==1.18.1`, `joblib==1.6.0`, `threadpoolctl==3.8.0`, `narwhals==2.28.0`, `cloudpickle==3.1.2`, sobre Python 3.12.10.
+1. Descargar `bodyPerformanceKaggle.csv` de Kaggle («Body Performance Data», kukuroo3) en `fuentes/`. No se sube al repositorio hasta confirmar su licencia.
+2. Desde la raíz del repositorio:
+   ```
+   python "C11 - Datos y modelo/preparar_datos.py"
+   python "C11 - Datos y modelo/generar_dataset.py"
+   ```
+
+Dependencias (solo para esta carpeta; se añadirán a `requirements.txt` en la integración): `scikit-learn==1.9.1`, `scipy==1.18.1`, `joblib==1.6.0`, `threadpoolctl==3.8.0`, `narwhals==2.28.0`, `cloudpickle==3.1.2`, `pandas==3.1.1`, `python-dateutil==4.0.0`, `tzdata==2026.6`, sobre Python 3.12.10. La explicación completa está en `FlexScan_Explicaciones_tecnicas_GONZALO.docx`, en la raíz del repositorio.
