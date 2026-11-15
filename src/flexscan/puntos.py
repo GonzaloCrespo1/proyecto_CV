@@ -14,7 +14,7 @@ PUNTOS = {11: "hombro_i", 12: "hombro_d", 15: "muneca_i", 16: "muneca_d",
           19: "dedo_i", 20: "dedo_d", 23: "cadera_i", 24: "cadera_d",
           27: "tobillo_i", 28: "tobillo_d", 31: "pie_i", 32: "pie_d"}
 VISIBILIDAD_MIN = 0.5      # por debajo, el punto se considera poco fiable
-K_YEMA = 1.64              # prolongación muñeca -> nudillo hasta la yema (12 muestras)
+K_YEMA = 1.15              # prolongación muñeca -> nudillo hasta la yema (12 muestras)
 
 
 class DetectorPose:
