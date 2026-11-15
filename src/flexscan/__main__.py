@@ -16,14 +16,15 @@ from flexscan.tarjeta import (TARJETA_VACIA, buscar_marco, dibujar_marco,
 from flexscan.registro import pedir_registro  
 from flexscan.fondo import Fondo 
 from flexscan.silueta import limpiar
-
+from flexscan.seguimiento import Seguidor
 
 def main():
     cap = abrir_camara()
     corrector = Corrector(RUTA_CALIBRACION)
     contador = ContadorFPS()
     estabilizador = Estabilizador()   
-    fondo = Fondo()    
+    fondo = Fondo()
+    seguidor = Seguidor() 
                        
     corregir = True
     ver_mascara = False
@@ -49,6 +50,7 @@ def main():
         silueta, caja, centro = None, None, None
         if primer_plano is not None:
             silueta, caja, centro = limpiar(primer_plano)
+        estimado = seguidor.actualizar(centro) 
 
         mascara = None
         esquinas = None
@@ -97,6 +99,11 @@ def main():
             cv2.rectangle(frame, (x, y), (x + ancho, y + alto), (0, 255, 0), 2)
             cv2.drawMarker(frame, (int(centro[0]), int(centro[1])), (0, 0, 255),
                            cv2.MARKER_CROSS, 30, 2)
+        
+        if ver_deteccion and estimado is not None:   
+            cv2.drawMarker(frame, (int(estimado[0]), int(estimado[1])),    
+                           (255, 0, 0), cv2.MARKER_CROSS, 30, 2) 
+            
         if fondo.aprendiendo:                             
             cv2.putText(frame, f"Aprendiendo fondo: {fondo.restantes}",   
                         (10, 110), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 165, 255), 2)   
