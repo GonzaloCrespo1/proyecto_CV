@@ -19,6 +19,7 @@ from flexscan.silueta import limpiar
 from flexscan.seguimiento import Seguidor
 from flexscan.grafica import GraficaGanancia
 from flexscan.quietud import Quietud
+from flexscan.puntos import DetectorPose, dibujar_puntos
 from flexscan.zona import (AMARILLO, FRAMES_CONFIRMACION, ROJO, VERDE, caja_colocacion,
                            dibujar_caja, esta_dentro)
 
@@ -37,11 +38,13 @@ def main():
     ver_tarjeta = False
     ver_silueta = False
     ver_deteccion = False
+    ver_puntos = False
+    detector_pose = None
     seguidos = 0
     acceso = None
     usuario = None 
     
-    print("Teclas: 'c' corregida, 'm' máscara, 't' tarjeta, 'r' registro, 'e' entrar, 's' cerrar sesión, 'f' aprender fondo, 'b' silueta, 'v' caja y centro, 'q' salir") 
+    print("Teclas: 'c' corregida, 'm' máscara, 't' tarjeta, 'r' registro, 'e' entrar, 's' cerrar sesión, 'f' aprender fondo, 'b' silueta, 'v' caja y centro, 'p' puntos, 'q' salir") 
     
 
     while True:
@@ -65,6 +68,7 @@ def main():
                              caja_zona)
         seguidos = seguidos + 1 if dentro and centro is not None else 0
         colocado = seguidos >= FRAMES_CONFIRMACION
+        puntos = detector_pose.detectar(frame) if ver_puntos else {}
 
         mascara = None
         esquinas = None
@@ -119,6 +123,8 @@ def main():
                            (255, 0, 0), cv2.MARKER_CROSS, 30, 2) 
         if ver_deteccion:
             cv2.imshow("Ganancia K", grafica.dibujar())
+        if ver_puntos:
+            dibujar_puntos(frame, puntos)
             
         if fondo.aprendiendo:                             
             cv2.putText(frame, f"Aprendiendo fondo: {fondo.restantes}",   
@@ -182,6 +188,10 @@ def main():
             ver_deteccion = not ver_deteccion
             if not ver_deteccion:
                 cv2.destroyWindow("Ganancia K")
+        if tecla == ord("p"):
+            if detector_pose is None:
+                detector_pose = DetectorPose()
+            ver_puntos = not ver_puntos
         
 
     cap.release()
