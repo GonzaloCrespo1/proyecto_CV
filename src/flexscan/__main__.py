@@ -20,6 +20,8 @@ from flexscan.seguimiento import Seguidor
 from flexscan.grafica import GraficaGanancia
 from flexscan.quietud import Quietud
 from flexscan.puntos import DetectorPose, dibujar_puntos
+from flexscan.escala import cargar_escala
+from flexscan.medida import DistanciaDedoPie, dibujar_distancia
 from flexscan.zona import (AMARILLO, FRAMES_CONFIRMACION, ROJO, VERDE, caja_colocacion,
                            dibujar_caja, esta_dentro)
 
@@ -40,6 +42,8 @@ def main():
     ver_deteccion = False
     ver_puntos = False
     detector_pose = None
+    medida = DistanciaDedoPie()
+    px_por_cm = cargar_escala()          # None si aún no se ha calibrado con la hoja A4
     seguidos = 0
     acceso = None
     usuario = None 
@@ -69,6 +73,7 @@ def main():
         seguidos = seguidos + 1 if dentro and centro is not None else 0
         colocado = seguidos >= FRAMES_CONFIRMACION
         puntos = detector_pose.detectar(frame) if ver_puntos else {}
+        distancia = medida.actualizar(puntos) if ver_puntos else None
 
         mascara = None
         esquinas = None
@@ -125,6 +130,7 @@ def main():
             cv2.imshow("Ganancia K", grafica.dibujar())
         if ver_puntos:
             dibujar_puntos(frame, puntos)
+            dibujar_distancia(frame, puntos, distancia, px_por_cm)
             
         if fondo.aprendiendo:                             
             cv2.putText(frame, f"Aprendiendo fondo: {fondo.restantes}",   
