@@ -21,7 +21,7 @@ from flexscan.grafica import GraficaGanancia
 from flexscan.quietud import Quietud
 from flexscan.puntos import DetectorPose, dibujar_puntos
 from flexscan.escala import cargar_escala
-from flexscan.medida import DistanciaDedoPie, dibujar_distancia
+from flexscan.medida import DistanciaDedoPie, MedidaValida, MIDIENDO, dibujar_distancia, dibujar_estado
 from flexscan.zona import (AMARILLO, FRAMES_CONFIRMACION, ROJO, VERDE, caja_colocacion,
                            dibujar_caja, esta_dentro)
 
@@ -43,12 +43,13 @@ def main():
     ver_puntos = False
     detector_pose = None
     medida = DistanciaDedoPie()
+    validador = MedidaValida()           # decide cuándo la medida es válida
     px_por_cm = cargar_escala()          # None si aún no se ha calibrado con la hoja A4
     seguidos = 0
     acceso = None
     usuario = None 
     
-    print("Teclas: 'c' corregida, 'm' máscara, 't' tarjeta, 'r' registro, 'e' entrar, 's' cerrar sesión, 'f' aprender fondo, 'b' silueta, 'v' caja y centro, 'p' puntos, 'q' salir") 
+    print("Teclas: 'c' corregida, 'm' máscara, 't' tarjeta, 'r' registro, 'e' entrar, 's' cerrar sesión, 'f' aprender fondo, 'b' silueta, 'v' caja y centro, 'p' puntos, 'n' nueva medida, 'q' salir") 
     
 
     while True:
@@ -72,8 +73,10 @@ def main():
                              caja_zona)
         seguidos = seguidos + 1 if dentro and centro is not None else 0
         colocado = seguidos >= FRAMES_CONFIRMACION
-        puntos = detector_pose.detectar(frame) if ver_puntos else {}
+        puntos = detector_pose.detectar(frame) if ver_puntos and colocado else {}
         distancia = medida.actualizar(puntos) if ver_puntos else None
+        if ver_puntos:
+            validador.actualizar(distancia, px_por_cm, quieta, colocado)
 
         mascara = None
         esquinas = None
@@ -131,6 +134,7 @@ def main():
         if ver_puntos:
             dibujar_puntos(frame, puntos)
             dibujar_distancia(frame, puntos, distancia, px_por_cm)
+            dibujar_estado(frame, validador, px_por_cm)
             
         if fondo.aprendiendo:                             
             cv2.putText(frame, f"Aprendiendo fondo: {fondo.restantes}",   
@@ -151,11 +155,12 @@ def main():
 
         if colocado and quieta:
             color = VERDE
+        else:
+            color = AMARILLO if colocado else ROJO
+        if colocado and quieta and validador.estado == MIDIENDO and validador.mejor is None:
             cv2.putText(frame, "COMENZAR ESTIRAMIENTO",
                         (caja_zona[0] + 20, caja_zona[1] + 50),
                         cv2.FONT_HERSHEY_SIMPLEX, 1.2, VERDE, 3)
-        else:
-            color = AMARILLO if colocado else ROJO
         dibujar_caja(frame, caja_zona, color)
 
         cv2.imshow("FlexScan", frame)
@@ -194,6 +199,8 @@ def main():
             ver_deteccion = not ver_deteccion
             if not ver_deteccion:
                 cv2.destroyWindow("Ganancia K")
+        if tecla == ord("n"):
+            validador.reiniciar()
         if tecla == ord("p"):
             if detector_pose is None:
                 detector_pose = DetectorPose()
