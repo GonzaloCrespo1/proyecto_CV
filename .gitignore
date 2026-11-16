@@ -25,3 +25,7 @@ Thumbs.db
 
 # Usuarios registrados (datos locales)
 usuarios.json
+
+# Escala de la sesión (se regenera con calibrar_escala; depende de la cámara y de la posición)
+datos/escala.json
+datos/escala_foto.jpg
