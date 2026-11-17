@@ -45,7 +45,7 @@ def dibujar_acceso(frame, acceso, ahora):
     """Dibuja sobre el vídeo el panel con la secuencia y el resultado. Modifica frame."""
     alto, ancho = frame.shape[:2]
     y0, y1 = alto - 160, alto - 20
-    x0, x1 = 20, 440
+    x0, x1 = 20, 500
     frame[y0:y1, x0:x1] = (frame[y0:y1, x0:x1] * 0.35).astype(np.uint8)   # fondo oscuro
     cv2.putText(frame, f"Usuario: {acceso.nombre}", (x0 + 16, y0 + 30), FUENTE, 0.7, BLANCO, 2)
 
@@ -59,6 +59,8 @@ def dibujar_acceso(frame, acceso, ahora):
             cv2.putText(frame, str(i + 1), (x + 20, y + 44), FUENTE, 0.9, (190, 190, 190), 2)
         cv2.rectangle(frame, (x - 2, y - 2), (x + LADO + 2, y + LADO + 2), borde, 3)
     cv2.putText(frame, _pista(acceso, ahora), (x0 + 16, y1 - 12), FUENTE, 0.55, BLANCO, 1)
+    if acceso.estado != sec.BLOQUEADO:            # con el bloqueo activo no se puede cancelar
+        cv2.putText(frame, "Esc: volver al inicio", (x1 - 125, y1 - 12), FUENTE, 0.45, (200, 200, 200), 1)
 
     if acceso.estado in TEXTO_ESTADO:
         texto = TEXTO_ESTADO[acceso.estado]
@@ -92,7 +94,7 @@ class FormularioNombre:
         lienzo = np.full((190, 560, 3), GRIS, np.uint8)
         cv2.rectangle(lienzo, (0, 0), (560, 46), AZUL_OSCURO, -1)
         cv2.putText(lienzo, "Entrar", (20, 32), FUENTE, 0.9, BLANCO, 2)
-        cv2.putText(lienzo, "Nombre:", (30, 78), FUENTE, 0.55, AZUL_OSCURO, 1)
+        cv2.putText(lienzo, "Nombre y apellido:", (30, 78), FUENTE, 0.55, AZUL_OSCURO, 1)
         cv2.rectangle(lienzo, (30, 88), (530, 128), BLANCO, -1)
         cv2.rectangle(lienzo, (30, 88), (530, 128), AZUL_OSCURO, 2)
         cv2.putText(lienzo, self.nombre + "_", (40, 118), FUENTE, 0.8, AZUL_OSCURO, 2)
@@ -130,9 +132,12 @@ def iniciar_acceso(anterior=None):
         nueva.intentos = anterior.intentos                                   
     return nueva                               
 
-def dibujar_usuario(frame, nombre):                                                       
+def dibujar_usuario(frame, nombre, perfil=None):                                                       
     """Escribe, discretamente y arriba a la derecha, el usuario que tiene la sesión abierta."""   
-    texto = f"Usuario: {nombre}"                                                           
+    texto = f"Usuario: {nombre}"
+    if perfil is not None:                       # los datos personales, en la misma línea
+        texto += (f" | Edad {perfil['edad']} | {perfil['sexo'].capitalize()} | "
+                  f"{perfil['altura_cm']} cm | {perfil['peso_kg']} kg")                                                           
     (ancho_texto, _), _ = cv2.getTextSize(texto, FUENTE, 0.6, 1)                            
     x1, y1 = frame.shape[1] - 10, 38                                                       
     x0, y0 = x1 - ancho_texto - 16, 10                                                      

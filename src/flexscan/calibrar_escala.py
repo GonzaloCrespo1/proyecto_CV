@@ -5,6 +5,9 @@
    cuenta atrás de 10 s para apartarse; al llegar a 0 se hace la foto.
 3. Se hacen cuatro clics sobre la foto: borde izquierdo, derecho, superior e inferior de la hoja.
 4. Se guarda la escala (píxeles por centímetro) en datos/escala.json.
+
+Los cuatro clics y el guardado están en flexscan/escala_en_vivo.py, que también usa el programa
+principal (tecla k).
 """
 import time
 
@@ -12,17 +15,10 @@ import cv2
 
 from flexscan.calibracion import Corrector, RUTA_CALIBRACION
 from flexscan.camara import abrir_camara
-from flexscan.escala import RUTA_FOTO, escala_desde_hoja, guardar_escala
+from flexscan.escala_en_vivo import AMARILLO, calibrar_sobre_foto, texto
 
 CUENTA_ATRAS = 10
-BORDES = ["IZQUIERDO", "DERECHO", "SUPERIOR", "INFERIOR"]
 VENTANA = "Calibracion de la escala"
-AMARILLO, ROJO, VERDE = (0, 255, 255), (0, 0, 255), (0, 255, 0)
-
-
-def texto(img, s, y, color=ROJO, tam=0.9):
-    cv2.putText(img, s, (10, y), cv2.FONT_HERSHEY_SIMPLEX, tam, (0, 0, 0), 5)
-    cv2.putText(img, s, (10, y), cv2.FONT_HERSHEY_SIMPLEX, tam, color, 2)
 
 
 def hacer_foto():
@@ -59,50 +55,11 @@ def hacer_foto():
             t0 = time.time()
 
 
-def pedir_bordes(foto):
-    """Cuatro clics (izquierdo, derecho, superior, inferior). Devuelve la lista de puntos."""
-    puntos = []
-
-    def raton(evento, x, y, flags, param):
-        if evento == cv2.EVENT_LBUTTONDOWN and len(puntos) < 4:
-            puntos.append((x, y))
-
-    cv2.setMouseCallback(VENTANA, raton)
-    while len(puntos) < 4:
-        img = foto.copy()
-        for i, (x, y) in enumerate(puntos):
-            if i < 2:
-                cv2.line(img, (x, 0), (x, img.shape[0]), AMARILLO, 1)
-            else:
-                cv2.line(img, (0, y), (img.shape[1], y), AMARILLO, 1)
-        texto(img, f"Clic en el borde {BORDES[len(puntos)]} de la hoja ({len(puntos) + 1}/4)", 40)
-        cv2.imshow(VENTANA, img)
-        if cv2.waitKey(30) & 0xFF == ord("q"):
-            return None
-    return puntos
-
-
 def main():
     foto = hacer_foto()
     if foto is None:
         return
-    cv2.imwrite(str(RUTA_FOTO), foto)
-    puntos = pedir_bordes(foto)
-    if puntos is None:
-        return
-    ancho = abs(puntos[1][0] - puntos[0][0])
-    alto = abs(puntos[3][1] - puntos[2][1])
-    escala, discrepancia = escala_desde_hoja(ancho, alto)
-    guardar_escala(escala, ancho, alto)
-    img = foto.copy()
-    cv2.rectangle(img, (puntos[0][0], puntos[2][1]), (puntos[1][0], puntos[3][1]), VERDE, 2)
-    texto(img, f"Escala: {escala:.2f} px/cm  (hoja {ancho} x {alto} px)", 40, VERDE)
-    if discrepancia > 0.08:
-        texto(img, "AVISO: ancho y alto no cuadran, repite con la hoja de frente", 80)
-    texto(img, "Pulsa una tecla para cerrar", 120, AMARILLO, 0.7)
-    print(f"Escala guardada: {escala:.2f} px/cm (discrepancia ancho/alto: {discrepancia:.1%})")
-    cv2.imshow(VENTANA, img)
-    cv2.waitKey(0)
+    calibrar_sobre_foto(foto, VENTANA)
     cv2.destroyAllWindows()
 
 
