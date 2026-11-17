@@ -29,6 +29,8 @@ from flexscan.instrucciones import mostrar_instrucciones
 from flexscan.perfil import cargar_perfil
 from flexscan.preparacion import Preparacion
 from flexscan.registro_medida import guardar_toma, pitar
+from flexscan.teclas import (AvisoTecla, MEDIDA, cerrar_auxiliares, cerrar_ventana, fase_actual,
+                              filtrar, normalizar)
 from flexscan.zona import (AMARILLO, FRAMES_CONFIRMACION, ROJO, VERDE, caja_colocacion,
                            dibujar_caja, esta_dentro)
 
@@ -58,6 +60,8 @@ def main():
     perfil = None
     ultimo_acceso = None                 # último acceso cancelado, para conservar sus fallos
     preparacion = Preparacion(fondo)     # cuenta atrás y aprendizaje automático del fondo
+    aviso_tecla = AvisoTecla()           # aviso en pantalla de una tecla fuera de su fase
+    fase_anterior = None
     
     print("Teclas: 'c' corregida, 'm' máscara, 't' tarjeta, 'r' registro, 'e' entrar, 's' cerrar sesión, 'f' aprender fondo, 'b' silueta, 'v' caja y centro, 'p' puntos, 'n' nueva medida, 'k' calibrar la escala, 'q' salir") 
     
@@ -120,8 +124,14 @@ def main():
                     usuario, perfil = None, None
                 else:
                     preparacion.empezar(time.monotonic())   # 5 s para apartarse y aprender el fondo
-            
-            
+
+        fase = fase_actual(px_por_cm is not None, acceso is not None, usuario is not None,
+                           preparacion.activa, validador.estado)
+        if fase != fase_anterior:                  # al avanzar en el programa, se cierran las ventanas de depuración
+            ver_mascara = ver_tarjeta = ver_silueta = ver_deteccion = False
+            cerrar_auxiliares()
+            fase_anterior = fase
+
         if ver_mascara and mascara is not None:
             cv2.imshow("Mascara", mascara)
 
@@ -188,18 +198,17 @@ def main():
 
         preparacion.actualizar(ahora)
         preparacion.dibujar(frame, ahora)
+        aviso_tecla.dibujar(frame, ahora)
         cv2.imshow("FlexScan", frame)
         if aviso:                                  # la medida acaba de terminar: guardar y avisar
             ruta = guardar_toma(frame, validador, px_por_cm, usuario=usuario)
             print(f"Medida {validador.estado}: guardada en {ruta}")
             pitar(validador.estado == TERMINADA)
 
-        tecla = cv2.waitKey(1) & 0xFF
+        tecla = normalizar(cv2.waitKey(1) & 0xFF)
         if tecla == ord("q"):
             break
-        if px_por_cm is None and tecla not in (255, ord("q"), ord("k"), ord("c")):
-            print("Falta la calibración de distancia: pulsa 'k' con la hoja A4 en el sitio del ejercicio")
-            tecla = 255                            # sin calibrar solo valen k, c y q
+        tecla = filtrar(tecla, fase, aviso_tecla, ahora)     # una tecla fuera de su fase no hace nada
         if tecla == ord("k"):
             nueva = calibrar_sobre_foto(limpio, "FlexScan", espera_ms=1500)
             if nueva is not None:
@@ -210,11 +219,11 @@ def main():
         if tecla == ord("m"):
             ver_mascara = not ver_mascara
             if not ver_mascara:
-                cv2.destroyWindow("Mascara")
+                cerrar_ventana("Mascara")
         if tecla == ord("t"):
             ver_tarjeta = not ver_tarjeta
             if not ver_tarjeta:
-                cv2.destroyWindow("Tarjeta")
+                cerrar_ventana("Tarjeta")
         if tecla == ord("r"):                                      
             if pedir_registro():                                    
                 print("Usuario registrado")                        
@@ -228,19 +237,23 @@ def main():
                 acceso = nuevo                                  
             estabilizador = Estabilizador()
         if tecla == ord("s"):
-            usuario = None
-            perfil = None
-            preparacion.cancelar()          
+            if fase == MEDIDA and validador.estado == MIDIENDO:     # medida en curso: se descarta primero
+                validador.reiniciar()
+                aviso_tecla.mostrar("Medida descartada. Pulsa S otra vez para cerrar la sesión.", ahora)
+            else:
+                usuario = None
+                perfil = None
+                preparacion.cancelar()
         if tecla == ord("f"):
             fondo.aprender()     
         if tecla == ord("b"):
             ver_silueta = not ver_silueta
             if not ver_silueta:
-                cv2.destroyWindow("Silueta")
+                cerrar_ventana("Silueta")
         if tecla == ord("v"):
             ver_deteccion = not ver_deteccion
             if not ver_deteccion:
-                cv2.destroyWindow("Ganancia K")
+                cerrar_ventana("Ganancia K")
         if tecla == ord("n"):
             validador.reiniciar()
         if tecla == ord("p"):
