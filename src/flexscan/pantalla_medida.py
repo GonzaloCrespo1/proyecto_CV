@@ -30,6 +30,11 @@ def _bgr(rgb):
     return (rgb[2], rgb[1], rgb[0])
 
 
+def texto_cm(valor):
+    """Centímetros con un decimal, signo y coma decimal: −4,7"""
+    return f"{valor:+.1f}".replace("-", "−").replace(".", ",")
+
+
 def situacion(colocado, quieta, validador):
     """Qué debe ver la persona según el estado de la colocación y de la medida."""
     if validador.estado == TERMINADA:
@@ -104,7 +109,7 @@ def _panel_final(esc, ok, valor=None):
         d.line([(cx - 0.4 * r, cy + 0.4 * r), (cx + 0.4 * r, cy - 0.4 * r)], fill=BLANCO + (255,), width=ancho_trazo)
     x = int(340 * esc)
     if ok:
-        texto = f"{valor:+.0f}".replace("-", "−")
+        texto = texto_cm(valor)
         d.text((x, int(34 * esc)), "MEDICIÓN REALIZADA", font=_fuente(int(46 * esc), True), fill=claro + (255,))
         d.text((x, int(92 * esc)), f"{texto} cm", font=_fuente(int(150 * esc), True), fill=BLANCO + (255,))
         explica = ("La yema del dedo supera el punto del pie." if valor >= 0
@@ -145,7 +150,7 @@ def _chip(esc, ok, valor):
     d = ImageDraw.Draw(im)
     d.rounded_rectangle((0, 0, pw - 1, ph - 1), int(16 * esc), fill=NAVY + (225,), outline=acento + (255,),
                         width=max(2, int(3 * esc)))
-    texto = (f"Última medida: {valor:+d} cm".replace("-", "−") if ok else "No se pudo medir")
+    texto = (f"Última medida: {texto_cm(valor)} cm" if ok else "No se pudo medir")
     d.text((int(24 * esc), ph // 2), texto, font=_fuente(int(27 * esc), True), fill=claro + (255,), anchor="lm")
     d.text((pw - int(22 * esc), ph // 2), "N: nueva · S: cerrar · H: teclas", font=_fuente(int(22 * esc)),
            fill=GRIS_CLARO + (255,), anchor="rm")
@@ -203,7 +208,7 @@ class PantallaMedida:
             self._t_final = None
         if sit in (RESULTADO, SIN_MEDIDA):
             ok = sit == RESULTADO
-            valor = round(validador.mejor) if ok else None
+            valor = round(validador.mejor, 1) if ok else None
             if self._t_final is not None and ahora - self._t_final < AVISO_FINAL_S:
                 self._tinte_y_borde(frame, VERDE if ok else ROJO, 0.24 if ok else 0.30, 16, ahora, late=False)
                 panel, transp = self._panel(frame.shape, (sit, valor), lambda e: _panel_final(e, ok, valor))

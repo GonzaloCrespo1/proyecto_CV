@@ -29,7 +29,10 @@ from flexscan.instrucciones import mostrar_instrucciones
 from flexscan.perfil import cargar_perfil
 from flexscan.preparacion import Preparacion
 from flexscan.registro_medida import guardar_toma, pitar_fin, pitar_inicio
-from flexscan.pantalla_medida import PantallaMedida
+from flexscan.pantalla_medida import AVISO_FINAL_S, PantallaMedida
+from flexscan.modelo_ml import MODELO_LISTO, predecir_valor_ml
+from flexscan.ventana_analisis import mostrar_analisis
+from flexscan.ventana_resultado import ANALISIS, CERRAR, REPETIR, mostrar_resultado
 from flexscan.teclas import (AvisoTecla, BotonTeclas, FASES_BOTON, MEDIDA, RESULTADO, cerrar_auxiliares,
                               cerrar_ventana, fase_actual, filtrar, normalizar)
 from flexscan.bienvenida import mostrar_bienvenida
@@ -71,6 +74,10 @@ def main():
     bienvenida_mostrada = False          # presentación del proyecto, una vez calibrada la escala
     abrir_teclas_al_arrancar = False
     raton_puesto = False
+    estimado_final = None                # último estado del seguimiento: se congela al terminar la medida
+    ruta_toma = None                     # carpeta de la última toma guardada
+    t_resultado = None                   # instante en que apareció el resultado (pitido grave)
+    resultado_visto = False              # la ventana de resultado ya se ha enseñado para esta medida
     
     print("Teclas: 'c' corregida, 'm' máscara, 't' tarjeta, 'r' registro, 'e' entrar, 's' cerrar sesión, 'f' aprender fondo, 'b' silueta, 'v' caja y centro, 'p' puntos, 'n' nueva medida, 'k' calibrar la escala, 'q' salir") 
     
@@ -96,9 +103,15 @@ def main():
         silueta, caja, centro = None, None, None
         if primer_plano is not None:
             silueta, caja, centro = limpiar(primer_plano)
-        estimado = seguidor.actualizar(centro) 
+        medida_cerrada = (px_por_cm is not None and usuario is not None and not preparacion.activa
+                          and validador.estado in (TERMINADA, FALLIDA))
+        if medida_cerrada and estimado_final is not None:
+            estimado = estimado_final                    # el seguimiento (Kalman) termina con la medida
+        else:
+            estimado = seguidor.actualizar(centro)
+            estimado_final = estimado
+            grafica.anadir(seguidor.ganancia)
         quieta = quietud.actualizar(estimado)
-        grafica.anadir(seguidor.ganancia)
         caja_zona = caja_colocacion(frame.shape)
         dentro = esta_dentro(estimado[:2] if estimado is not None else None,
                              caja_zona)
@@ -148,6 +161,8 @@ def main():
                     if detector_pose is None:
                         detector_pose = DetectorPose()      # el modelo tarda en cargar: se prepara antes de la cuenta atrás
                     validador.reiniciar()
+                    seguidor, quietud, estimado_final = Seguidor(), Quietud(), None     # seguimiento nuevo
+                    resultado_visto = False
                     preparacion.empezar(time.monotonic())   # 5 s para apartarse y aprender el fondo
 
         fondo_listo = fondo.mog is not None and not fondo.aprendiendo
@@ -241,9 +256,28 @@ def main():
         if aviso:                                  # la medida acaba de terminar: guardar y avisar
             ruta = guardar_toma(captura, validador, px_por_cm, usuario=usuario)
             print(f"Medida {validador.estado}: guardada en {ruta}")
+            ruta_toma, t_resultado, resultado_visto = ruta, time.monotonic(), False
             pitar_fin(validador.estado == TERMINADA)       # pitido grave: la medida ha terminado
 
+        forzada = None
+        if (fase == RESULTADO and not resultado_visto and t_resultado is not None
+                and time.monotonic() - t_resultado >= AVISO_FINAL_S + 0.3):
+            resultado_visto = True                 # tras la pantalla verde, la ventana de resultado detiene el vídeo
+            ventana_teclas.cerrar()
+            medida_cm = round(validador.mejor, 1) if validador.estado == TERMINADA else None
+            accion = mostrar_resultado(medida_cm, usuario, perfil)
+            while accion == ANALISIS and medida_cm is not None:
+                try:
+                    valor_ml = predecir_valor_ml(ruta_toma) if MODELO_LISTO else None
+                except Exception as error:         # un fallo del modelo nunca debe romper el programa
+                    print(f"Modelo de ML: {error}")
+                    valor_ml = None
+                mostrar_analisis(medida_cm, valor_ml, MODELO_LISTO and valor_ml is not None)
+                accion = mostrar_resultado(medida_cm, usuario, perfil)
+            forzada = ord("n") if accion == REPETIR else ord("s") if accion == CERRAR else None
         tecla = normalizar(cv2.waitKey(1) & 0xFF)
+        if forzada is not None:
+            tecla = forzada                        # la opción elegida en la ventana equivale a pulsar N o S
         if tecla == ord("q"):
             break
         if tecla == 27 and ventana_teclas.abierta:           # Esc cierra primero la ventana de teclas
@@ -289,6 +323,8 @@ def main():
                 perfil = None
                 preparacion.cancelar()
                 validador.reiniciar()               # la próxima sesión empieza de cero
+                seguidor, quietud, estimado_final = Seguidor(), Quietud(), None
+                resultado_visto = False
         if tecla == ord("f"):
             fondo.aprender()     
         if tecla == ord("b"):
@@ -299,8 +335,10 @@ def main():
             ver_deteccion = not ver_deteccion
             if not ver_deteccion:
                 cerrar_ventana("Ganancia K")
-        if tecla == ord("n"):
+        if tecla == ord("n"):                      # nueva medida: nuevo seguimiento, y vuelven los pasos de antes
             validador.reiniciar()
+            seguidor, quietud, estimado_final = Seguidor(), Quietud(), None
+            resultado_visto = False
         if tecla == ord("p"):                      # muestra u oculta los puntos; la medida no se ve afectada
             ver_puntos = not ver_puntos
         clic_teclas = boton_teclas.pulsado()
