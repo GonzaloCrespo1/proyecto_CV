@@ -24,6 +24,7 @@ from flexscan.escala import cargar_escala
 from flexscan.escala_en_vivo import calibrar_sobre_foto, dibujar_aviso_calibracion
 from flexscan.medida import (DistanciaDedoPie, FALLIDA, MedidaValida, MIDIENDO, TERMINADA,
                              dibujar_distancia, dibujar_estado)
+from flexscan.perfil import cargar_perfil
 from flexscan.registro_medida import guardar_toma, pitar
 from flexscan.zona import (AMARILLO, FRAMES_CONFIRMACION, ROJO, VERDE, caja_colocacion,
                            dibujar_caja, esta_dentro)
@@ -51,6 +52,7 @@ def main():
     seguidos = 0
     acceso = None
     usuario = None 
+    perfil = None
     
     print("Teclas: 'c' corregida, 'm' máscara, 't' tarjeta, 'r' registro, 'e' entrar, 's' cerrar sesión, 'f' aprender fondo, 'b' silueta, 'v' caja y centro, 'p' puntos, 'n' nueva medida, 'k' calibrar la escala, 'q' salir") 
     
@@ -106,6 +108,7 @@ def main():
             acceso.actualizar(simbolo, ahora) 
             if acceso.sesion_lista(ahora):
                 usuario = acceso.nombre
+                perfil = cargar_perfil(usuario)     # datos personales, para mostrarlos
                 acceso = None
             
             
@@ -158,7 +161,7 @@ def main():
             dibujar_acceso(frame, acceso, ahora)     
             
         if usuario is not None:                                                     
-            dibujar_usuario(frame, usuario)
+            dibujar_usuario(frame, usuario, perfil)
 
         if colocado and quieta:
             color = VERDE
@@ -210,7 +213,8 @@ def main():
                 acceso = nuevo                                  
             estabilizador = Estabilizador()
         if tecla == ord("s"):
-            usuario = None          
+            usuario = None
+            perfil = None          
         if tecla == ord("f"):
             fondo.aprender()     
         if tecla == ord("b"):

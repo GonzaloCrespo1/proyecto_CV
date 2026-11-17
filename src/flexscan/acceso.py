@@ -130,9 +130,12 @@ def iniciar_acceso(anterior=None):
         nueva.intentos = anterior.intentos                                   
     return nueva                               
 
-def dibujar_usuario(frame, nombre):                                                       
+def dibujar_usuario(frame, nombre, perfil=None):                                                       
     """Escribe, discretamente y arriba a la derecha, el usuario que tiene la sesión abierta."""   
-    texto = f"Usuario: {nombre}"                                                           
+    texto = f"Usuario: {nombre}"
+    if perfil is not None:                       # los datos personales, en la misma línea
+        texto += (f" | Edad {perfil['edad']} | {perfil['sexo'].capitalize()} | "
+                  f"{perfil['altura_cm']} cm | {perfil['peso_kg']} kg")                                                           
     (ancho_texto, _), _ = cv2.getTextSize(texto, FUENTE, 0.6, 1)                            
     x1, y1 = frame.shape[1] - 10, 38                                                       
     x0, y0 = x1 - ancho_texto - 16, 10                                                      
