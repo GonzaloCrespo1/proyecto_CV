@@ -147,6 +147,8 @@ requirements.txt     dependencias con versiones fijas
 
 ## Documentación
 ```
+Propuesta_FlexScan_v3.pdf                          propuesta anterior (15 nov): tres pruebas e índice de flexibilidad
+Propuesta_FlexScan_version_final.pdf               propuesta final (17 nov), ajustada a las decisiones del desarrollo
 FlexScan_Plan_de_trabajo.pdf                       plan por bloques y estado
 FlexScan_C1-C2_Calibracion_y_preparacion.pdf       cuaderno técnico: calibración y preparación
 FlexScan_C3-C4_Deteccion_de_patrones.pdf           cuaderno técnico: cámara y detección de patrones
