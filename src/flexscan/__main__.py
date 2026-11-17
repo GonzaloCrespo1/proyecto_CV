@@ -3,6 +3,7 @@ import cv2
 import time
 
 
+from flexscan import secuencia as sec
 from flexscan.acceso import dibujar_acceso, iniciar_acceso, dibujar_usuario
 from flexscan.calibracion import Corrector, RUTA_CALIBRACION
 from flexscan.camara import abrir_camara
@@ -24,6 +25,7 @@ from flexscan.escala import cargar_escala
 from flexscan.escala_en_vivo import calibrar_sobre_foto, dibujar_aviso_calibracion
 from flexscan.medida import (DistanciaDedoPie, FALLIDA, MedidaValida, MIDIENDO, TERMINADA,
                              dibujar_distancia, dibujar_estado)
+from flexscan.instrucciones import mostrar_instrucciones
 from flexscan.perfil import cargar_perfil
 from flexscan.registro_medida import guardar_toma, pitar
 from flexscan.zona import (AMARILLO, FRAMES_CONFIRMACION, ROJO, VERDE, caja_colocacion,
@@ -53,6 +55,7 @@ def main():
     acceso = None
     usuario = None 
     perfil = None
+    ultimo_acceso = None                 # último acceso cancelado, para conservar sus fallos
     
     print("Teclas: 'c' corregida, 'm' máscara, 't' tarjeta, 'r' registro, 'e' entrar, 's' cerrar sesión, 'f' aprender fondo, 'b' silueta, 'v' caja y centro, 'p' puntos, 'n' nueva medida, 'k' calibrar la escala, 'q' salir") 
     
@@ -110,6 +113,9 @@ def main():
                 usuario = acceso.nombre
                 perfil = cargar_perfil(usuario)     # datos personales, para mostrarlos
                 acceso = None
+                ultimo_acceso = None
+                if not mostrar_instrucciones():     # ventana de instrucciones; Esc = no continuar
+                    usuario, perfil = None, None
             
             
         if ver_mascara and mascara is not None:
@@ -207,8 +213,11 @@ def main():
             if pedir_registro():                                    
                 print("Usuario registrado")                        
             estabilizador = Estabilizador()         
+        if tecla == 27 and acceso is not None and acceso.estado != sec.BLOQUEADO:    # Esc: volver al inicio
+            ultimo_acceso, acceso = acceso, None            # se recuerdan sus fallos
+            estabilizador = Estabilizador()
         if tecla == ord("e") and usuario is None:                                   
-            nuevo = iniciar_acceso(acceso)                      
+            nuevo = iniciar_acceso(acceso if acceso is not None else ultimo_acceso)                      
             if nuevo is not None:                               
                 acceso = nuevo                                  
             estabilizador = Estabilizador()

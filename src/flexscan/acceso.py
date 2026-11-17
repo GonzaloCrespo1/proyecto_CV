@@ -45,7 +45,7 @@ def dibujar_acceso(frame, acceso, ahora):
     """Dibuja sobre el vídeo el panel con la secuencia y el resultado. Modifica frame."""
     alto, ancho = frame.shape[:2]
     y0, y1 = alto - 160, alto - 20
-    x0, x1 = 20, 440
+    x0, x1 = 20, 500
     frame[y0:y1, x0:x1] = (frame[y0:y1, x0:x1] * 0.35).astype(np.uint8)   # fondo oscuro
     cv2.putText(frame, f"Usuario: {acceso.nombre}", (x0 + 16, y0 + 30), FUENTE, 0.7, BLANCO, 2)
 
@@ -59,6 +59,8 @@ def dibujar_acceso(frame, acceso, ahora):
             cv2.putText(frame, str(i + 1), (x + 20, y + 44), FUENTE, 0.9, (190, 190, 190), 2)
         cv2.rectangle(frame, (x - 2, y - 2), (x + LADO + 2, y + LADO + 2), borde, 3)
     cv2.putText(frame, _pista(acceso, ahora), (x0 + 16, y1 - 12), FUENTE, 0.55, BLANCO, 1)
+    if acceso.estado != sec.BLOQUEADO:            # con el bloqueo activo no se puede cancelar
+        cv2.putText(frame, "Esc: volver al inicio", (x1 - 125, y1 - 12), FUENTE, 0.45, (200, 200, 200), 1)
 
     if acceso.estado in TEXTO_ESTADO:
         texto = TEXTO_ESTADO[acceso.estado]
