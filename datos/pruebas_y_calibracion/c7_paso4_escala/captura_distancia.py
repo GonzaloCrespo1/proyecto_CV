@@ -1,13 +1,13 @@
 """Toma de medidas de la distancia dedo-pie con la distancia real conocida.
 
 Uso (desde la carpeta src, con el entorno activado):
-    python ..\\datos\\c7_paso4_escala\\captura_distancia.py ETIQUETA DISTANCIA_REAL_CM
+    python ..\\datos\\pruebas_y_calibracion\\c7_paso4_escala\\captura_distancia.py ETIQUETA DISTANCIA_REAL_CM
 Ejemplo:
-    python ..\\datos\\c7_paso4_escala\\captura_distancia.py d20_descalzo 20
+    python ..\\datos\\pruebas_y_calibracion\\c7_paso4_escala\\captura_distancia.py d20_descalzo 20
 
 Se abre la cámara y la cuenta atrás de 20 s empieza al pulsar ESPACIO. Después hace
 6 capturas (una cada 1,5 s) y guarda las fotos y una fila por captura en
-datos/c7_paso4_escala/valores.csv. Con q se sale.
+datos/pruebas_y_calibracion/c7_paso4_escala/valores.csv. Con q se sale.
 """
 import csv
 import math
@@ -24,7 +24,7 @@ from flexscan.medida import DistanciaDedoPie, dibujar_distancia
 from flexscan.puntos import DetectorPose, dibujar_puntos, mejor_punto, punta_dedo
 
 etiqueta, real_cm = sys.argv[1], float(sys.argv[2])
-carpeta = os.path.join(os.getcwd(), "..", "datos", "c7_paso4_escala")
+carpeta = os.path.join(os.getcwd(), "..", "datos", "pruebas_y_calibracion", "c7_paso4_escala")
 os.makedirs(carpeta, exist_ok=True)
 ruta_csv = os.path.join(carpeta, "valores.csv")
 if not os.path.exists(ruta_csv):

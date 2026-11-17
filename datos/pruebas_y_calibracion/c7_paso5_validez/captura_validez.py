@@ -1,9 +1,9 @@
 """Captura de series temporales para fijar la condición de validez de la medida (C7, Paso 5).
 
 Uso (desde la carpeta src, con el entorno activado):
-    python ..\\datos\\c7_paso5_validez\\captura_validez.py TOMA
+    python ..\\datos\\pruebas_y_calibracion\\c7_paso5_validez\\captura_validez.py TOMA
 Ejemplo:
-    python ..\\datos\\c7_paso5_validez\\captura_validez.py toma1
+    python ..\\datos\\pruebas_y_calibracion\\c7_paso5_validez\\captura_validez.py toma1
 
 Se abre la cámara y ESPACIO inicia una cuenta atrás de 10 s para colocarse. Después se
 siguen cuatro fases guiadas en pantalla (34 s en total):
@@ -11,7 +11,7 @@ siguen cuatro fases guiadas en pantalla (34 s en total):
     2. Inclinarse despacio hacia delante (8-20 s)
     3. Mantener la máxima flexión        (20-26 s)
     4. Volver recto, manos en las rodillas y quieto (26-34 s)
-En cada fotograma se guarda una fila en datos/c7_paso5_validez/serie_TOMA_HHMMSS.csv con la
+En cada fotograma se guarda una fila en datos/pruebas_y_calibracion/c7_paso5_validez/serie_TOMA_HHMMSS.csv con la
 distancia dedo-pie (instantánea y filtrada) y el ángulo del tronco. Con q se sale.
 Hay que haber calibrado antes la escala (python -m flexscan.calibrar_escala).
 """
@@ -63,7 +63,7 @@ def distancia_instantanea(puntos):
 
 def main():
     toma = sys.argv[1]
-    carpeta = os.path.join(os.getcwd(), "..", "datos", "c7_paso5_validez")
+    carpeta = os.path.join(os.getcwd(), "..", "datos", "pruebas_y_calibracion", "c7_paso5_validez")
     os.makedirs(carpeta, exist_ok=True)
     ruta = os.path.join(carpeta, f"serie_{toma}_{time.strftime('%H%M%S')}.csv")
     px_por_cm = cargar_escala()

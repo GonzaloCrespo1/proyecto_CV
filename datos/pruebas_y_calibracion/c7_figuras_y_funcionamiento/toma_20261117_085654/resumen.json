@@ -1,0 +1,21 @@
+{
+  "estado": "terminada",
+  "medida_cm": -9.5,
+  "mejor_candidata_cm": -9.5,
+  "base_cm": -44.3,
+  "t_base_s": 18.7,
+  "ventana_mejor_s": [
+    21.47,
+    23.4
+  ],
+  "t_fin_s": 28.41,
+  "px_por_cm": 5.015,
+  "parametros": {
+    "ventana_s": 2.0,
+    "variacion_base_cm": 4.0,
+    "variacion_max_cm": 6.0,
+    "subida_min_cm": 10.0,
+    "fin_sin_mejora_s": 5.0,
+    "limite_s": 60.0
+  }
+}

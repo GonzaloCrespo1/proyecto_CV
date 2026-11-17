@@ -102,7 +102,7 @@ src/flexscan/
     quietud.py         decide si la persona está quieta (umbral con histéresis)
 patrones/            los cuatro símbolos en PNG
 usuarios.json        usuarios registrados (local, no se sube a GitHub)
-datos/               datos_velocidad.csv: toma real con la que se fijó el umbral de quietud
+datos/               escala de la sesión, en_vivo/ (tomas guardadas por el programa) y pruebas_y_calibracion/ (ver datos/README.md)
 C1-C2 - .../         calibración de la cámara (se ejecuta una vez)
 requirements.txt     dependencias con versiones fijas
 ```
