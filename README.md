@@ -11,7 +11,9 @@ En desarrollo. Ya funciona:
 
 - el **tracker** de la persona: aprende el fondo con MOG2 y lo congela, extrae su silueta (la componente conexa mayor), sigue su centroide con un **filtro de Kalman** de velocidad constante y dibuja una **caja punteada de colocación** que es roja sin persona, amarilla cuando entra y verde con el mensaje «COMENZAR ESTIRAMIENTO» cuando está quieta (velocidad estimada por debajo de 0,5 px/fotograma durante 15 fotogramas, umbral medido con datos reales).
 
-Queda por construir la medida de la flexibilidad (puntos clave y ángulos) y la sesión completa.
+- los **puntos clave del cuerpo** con MediaPipe Pose (tecla **p**) y la **medida del ejercicio 1** (sit-and-reach): distancia horizontal entre la yema del dedo y el pie, en cm, con la escala sacada de una hoja A4, filtrada con la mediana de 15 fotogramas y validada por una regla (línea base, mejor ventana de 2 s, fin a los 5 s sin mejora). Al terminar suena un pitido y se guarda la toma (captura, gráfica, serie y resumen) en `datos/en_vivo/`.
+
+Queda por construir la integración del recorrido completo (inicio de sesión, formulario de datos, figura guía, JSON por persona) y la parte de aprendizaje automático. El proyecto se centra en **un solo ejercicio, el sit-and-reach**.
 
 **Nota.** De momento la caja y el estado verde se muestran siempre, para poder depurar sin registrarse cada vez. En la integración final solo funcionarán con la sesión iniciada.
 
@@ -20,6 +22,8 @@ La documentación técnica de cada bloque está en la carpeta del proyecto (ver 
 ## Requisitos
 - Python 3
 - Webcam (probado con la del portátil, en Windows)
+- Dependencias de `requirements.txt`: `numpy`, `opencv-contrib-python` y `mediapipe`
+- Una hoja **A4** para calibrar la escala (el pitido de aviso solo suena en Windows)
 
 ## Instalación
 ```
@@ -30,6 +34,12 @@ pip install -r requirements.txt
 En Linux o macOS, el segundo comando es `source venv/bin/activate`.
 
 ## Ejecución
+Antes de medir hay que **calibrar la escala** (el fichero `datos/escala.json` no se sube a GitHub, así que cada persona lo genera en su ordenador y debe repetirlo si cambia la cámara o su posición):
+```
+cd src
+python -m flexscan.calibrar_escala
+```
+Después se lanza el programa:
 ```
 cd src
 python -m flexscan
@@ -44,6 +54,8 @@ Teclas:
 | **f** | vuelve a aprender el fondo (hacerlo con la escena vacía) |
 | **b** | muestra u oculta la silueta limpia (primer plano) |
 | **v** | muestra u oculta la caja, el centroide y la estimación de Kalman |
+| **p** | activa o desactiva los puntos del cuerpo y la medida del ejercicio 1 |
+| **n** | descarta la medida y empieza otra |
 | **r** | abre la ventana para registrar un usuario nuevo (nombre y clave de 4 símbolos) |
 | **e** | entrar: pide el nombre y después hay que enseñar a la cámara los cuatro símbolos de la clave, en orden |
 | **s** | cierra la sesión abierta |
@@ -61,6 +73,15 @@ Teclas:
 4. Quédate quieto: con unos 0,6 s sin moverte pasa a **verde** y sale «COMENZAR ESTIRAMIENTO». Si te mueves, vuelve a amarilla.
 
 Parámetros ajustables (constantes al inicio de cada módulo): tamaño de la caja y grosor del trazo (`zona.py`), fotogramas de confirmación (`zona.py`), umbrales de quietud y fotogramas necesarios (`quietud.py`), área mínima de la silueta (`silueta.py`) y ruidos del filtro de Kalman (`seguimiento.py`). El umbral de quietud depende de los FPS y de la distancia a la cámara, así que habrá que revisarlo si cambia el montaje. Una superficie clara cercana puede unirse a la silueta y el fondo congelado falla ante cambios bruscos de luz; en ambos casos se repite el aprendizaje con **f**.
+
+## Cómo se mide el ejercicio 1
+1. Calibra la escala con `python -m flexscan.calibrar_escala` (hoja A4 en el plano de los pies).
+2. Arranca el programa, deja la escena **vacía** y pulsa **f**; después pulsa **p**.
+3. Siéntate de lado con las piernas estiradas y las **manos en las rodillas**, quieto dentro de la caja. Cuando salga «COMENZAR ESTIRAMIENTO», inclínate hacia delante y **mantén la postura**.
+4. Unos 5 s después de tu mejor ventana suena **un pitido largo** y aparece «MEDIDA: X cm» (negativa si la yema no llega al pie). Si no hay ventana válida en 60 s, suenan dos pitidos graves y sale «Sin medida válida».
+5. Cada toma se guarda sola en `datos/en_vivo/toma_AAAAMMDD_HHMMSS/` (`captura.png`, `grafica.png`, `serie.csv`, `resumen.json`). Con **n** se empieza otra medida; salir de la caja también la reinicia.
+
+Error esperado de la medida: unos 3–4 cm. Parámetros ajustables en `medida.py` (ventana, variaciones, subida mínima, fin sin mejora, límite) y `escala.py`.
 
 ## Cómo se usa el control de acceso
 1. **Registrarse.** Pulsa **r**, escribe el nombre y pulsa en orden los cuatro símbolos de la clave (se pueden repetir). Después, «Guardar».
@@ -100,6 +121,12 @@ src/flexscan/
     grafica.py         ventana con la ganancia de Kalman en tiempo real
     zona.py            caja punteada de colocación y sus estados
     quietud.py         decide si la persona está quieta (umbral con histéresis)
+    puntos.py          puntos del cuerpo con MediaPipe Pose (tecla p) y yema del dedo
+    escala.py          px por cm a partir de la hoja A4
+    calibrar_escala.py calibración de la escala (python -m flexscan.calibrar_escala)
+    medida.py          distancia yema-pie en cm y regla de validez de la medida
+    registro_medida.py pitido y guardado de cada toma (captura, gráfica, serie, resumen)
+modelos/             modelo de MediaPipe Pose
 patrones/            los cuatro símbolos en PNG
 usuarios.json        usuarios registrados (local, no se sube a GitHub)
 datos/               escala de la sesión, en_vivo/ (tomas guardadas por el programa) y pruebas_y_calibracion/ (ver datos/README.md)
@@ -114,7 +141,8 @@ FlexScan_C1-C2_Calibracion_y_preparacion.pdf       cuaderno técnico: calibraci�
 FlexScan_C3-C4_Deteccion_de_patrones.pdf           cuaderno técnico: cámara y detección de patrones
 FlexScan_C5_Seguridad.pdf                          cuaderno técnico: control de acceso
 FlexScan_C6_Tracker.pdf                            cuaderno técnico: tracker y caja de colocación
-FlexScan_Explicaciones_tecnicas.docx               cuaderno técnico en curso (C7 en adelante)
+FlexScan_C7_Puntos_clave.pdf                       cuaderno técnico: puntos clave y medida de flexibilidad
+FlexScan_Explicaciones_tecnicas.docx               cuaderno técnico en curso (C8 en adelante)
 ```
 Cada grupo de bloques cerrado se pasa a su propio PDF y el Word queda libre para el siguiente.
 
