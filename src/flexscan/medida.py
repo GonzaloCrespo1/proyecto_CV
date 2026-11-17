@@ -62,6 +62,9 @@ class MedidaValida:
         self.base = None                # línea base (cm)
         self.mejor = None               # mayor candidata hasta ahora (cm)
         self.t_inicio = self.t_mejor = None
+        self.historial = []             # pares (segundos desde la primera muestra, distancia en cm)
+        self.t0 = self.t_fin = None     # instante de la primera muestra y del fin de la medida
+        self.ventana_mejor = None       # (inicio, fin) en segundos de la ventana de la mejor candidata
 
     def _ventana_llena(self, ahora):
         """Mediana y variación de la ventana de VENTANA_S segundos, o None si aún no está llena."""
@@ -83,6 +86,9 @@ class MedidaValida:
                 self.reiniciar()
             return self.estado
         self.ventana.append((ahora, distancia_px / px_por_cm))
+        if self.t0 is None:
+            self.t0 = ahora
+        self.historial.append((ahora - self.t0, distancia_px / px_por_cm))
         datos = self._ventana_llena(ahora)
         if datos is None:
             return self.estado
@@ -98,11 +104,14 @@ class MedidaValida:
         if variacion <= VARIACION_MAX_CM and mediana - self.base >= SUBIDA_MIN_CM \
                 and (self.mejor is None or mediana > self.mejor):
             self.mejor, self.t_mejor = mediana, ahora
+            self.ventana_mejor = (self.ventana[0][0] - self.t0, ahora - self.t0)
         if self.mejor is not None and (ahora - self.t_mejor >= FIN_SIN_MEJORA_S
                                        or ahora - self.t_inicio >= LIMITE_S):
             self.estado = TERMINADA
+            self.t_fin = ahora - self.t0
         elif self.mejor is None and ahora - self.t_inicio >= LIMITE_S:
             self.estado = FALLIDA
+            self.t_fin = ahora - self.t0
         return self.estado
 
 

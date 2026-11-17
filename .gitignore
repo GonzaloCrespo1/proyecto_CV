@@ -29,3 +29,6 @@ usuarios.json
 # Escala de la sesión (se regenera con calibrar_escala; depende de la cámara y de la posición)
 datos/escala.json
 datos/escala_foto.jpg
+
+# Tomas guardadas automaticamente por el programa (una carpeta por toma y, con login, por usuario)
+datos/en_vivo/

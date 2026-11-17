@@ -21,7 +21,9 @@ from flexscan.grafica import GraficaGanancia
 from flexscan.quietud import Quietud
 from flexscan.puntos import DetectorPose, dibujar_puntos
 from flexscan.escala import cargar_escala
-from flexscan.medida import DistanciaDedoPie, MedidaValida, MIDIENDO, dibujar_distancia, dibujar_estado
+from flexscan.medida import (DistanciaDedoPie, FALLIDA, MedidaValida, MIDIENDO, TERMINADA,
+                             dibujar_distancia, dibujar_estado)
+from flexscan.registro_medida import guardar_toma, pitar
 from flexscan.zona import (AMARILLO, FRAMES_CONFIRMACION, ROJO, VERDE, caja_colocacion,
                            dibujar_caja, esta_dentro)
 
@@ -75,8 +77,11 @@ def main():
         colocado = seguidos >= FRAMES_CONFIRMACION
         puntos = detector_pose.detectar(frame) if ver_puntos and colocado else {}
         distancia = medida.actualizar(puntos) if ver_puntos else None
+        aviso = False
         if ver_puntos:
+            estado_antes = validador.estado
             validador.actualizar(distancia, px_por_cm, quieta, colocado)
+            aviso = estado_antes not in (TERMINADA, FALLIDA) and validador.estado in (TERMINADA, FALLIDA)
 
         mascara = None
         esquinas = None
@@ -164,6 +169,10 @@ def main():
         dibujar_caja(frame, caja_zona, color)
 
         cv2.imshow("FlexScan", frame)
+        if aviso:                                  # la medida acaba de terminar: guardar y avisar
+            ruta = guardar_toma(frame, validador, px_por_cm, usuario=usuario)
+            print(f"Medida {validador.estado}: guardada en {ruta}")
+            pitar(validador.estado == TERMINADA)
 
         tecla = cv2.waitKey(1) & 0xFF
         if tecla == ord("q"):
