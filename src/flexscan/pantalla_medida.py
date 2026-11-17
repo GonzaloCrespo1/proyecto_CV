@@ -142,21 +142,6 @@ AVISO_INICIO_S = 3.0      # el aviso amarillo de comenzar se ve solo unos segund
 AVISO_FINAL_S = 4.0       # la pantalla de resultado se ve solo unos segundos
 
 
-def _chip(esc, ok, valor):
-    """Resumen pequeño que queda arriba tras la pantalla de resultado, sin tapar el cuerpo."""
-    pw, ph = int(760 * esc), int(58 * esc)
-    acento, claro = (VERDE, VERDE_CLARO) if ok else (ROJO, ROJO_CLARO)
-    im = Image.new("RGBA", (pw, ph), (0, 0, 0, 0))
-    d = ImageDraw.Draw(im)
-    d.rounded_rectangle((0, 0, pw - 1, ph - 1), int(16 * esc), fill=NAVY + (225,), outline=acento + (255,),
-                        width=max(2, int(3 * esc)))
-    texto = (f"Última medida: {texto_cm(valor)} cm" if ok else "No se pudo medir")
-    d.text((int(24 * esc), ph // 2), texto, font=_fuente(int(27 * esc), True), fill=claro + (255,), anchor="lm")
-    d.text((pw - int(22 * esc), ph // 2), "N: nueva · S: cerrar · H: teclas", font=_fuente(int(22 * esc)),
-           fill=GRIS_CLARO + (255,), anchor="rm")
-    return _capas(im)
-
-
 class PantallaMedida:
     def __init__(self):
         self._cache = {}
@@ -214,11 +199,7 @@ class PantallaMedida:
                 panel, transp = self._panel(frame.shape, (sit, valor), lambda e: _panel_final(e, ok, valor))
                 ph, pw = panel.shape[:2]
                 self._mezclar(frame, panel, transp, (ancho - pw) // 2, max(0, (alto - ph) // 2))
-            else:
-                panel, transp = self._panel(frame.shape, ("chip", sit, valor), lambda e: _chip(e, ok, valor))
-                ph, pw = panel.shape[:2]
-                self._mezclar(frame, panel, transp, (ancho - pw) // 2, 54)
-            return
+            return                                   # pasados los segundos del aviso, imagen limpia: el resultado ya está en su ventana
         if sit == COLOCARSE:
             mostrar = COLOCARSE
         elif self._t_inicio is not None and ahora - self._t_inicio < AVISO_INICIO_S:
