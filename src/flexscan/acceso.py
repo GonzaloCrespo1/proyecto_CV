@@ -92,7 +92,7 @@ class FormularioNombre:
         lienzo = np.full((190, 560, 3), GRIS, np.uint8)
         cv2.rectangle(lienzo, (0, 0), (560, 46), AZUL_OSCURO, -1)
         cv2.putText(lienzo, "Entrar", (20, 32), FUENTE, 0.9, BLANCO, 2)
-        cv2.putText(lienzo, "Nombre:", (30, 78), FUENTE, 0.55, AZUL_OSCURO, 1)
+        cv2.putText(lienzo, "Nombre y apellido:", (30, 78), FUENTE, 0.55, AZUL_OSCURO, 1)
         cv2.rectangle(lienzo, (30, 88), (530, 128), BLANCO, -1)
         cv2.rectangle(lienzo, (30, 88), (530, 128), AZUL_OSCURO, 2)
         cv2.putText(lienzo, self.nombre + "_", (40, 118), FUENTE, 0.8, AZUL_OSCURO, 2)

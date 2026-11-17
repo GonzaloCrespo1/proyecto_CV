@@ -19,6 +19,8 @@ import cv2
 import numpy as np
 
 from flexscan.escala import RAIZ
+from flexscan.perfil import cargar_perfil, carpeta_usuario
+from flexscan.usuarios import normalizar
 from flexscan.medida import (FIN_SIN_MEJORA_S, LIMITE_S, SUBIDA_MIN_CM, TERMINADA,
                              VARIACION_BASE_CM, VARIACION_MAX_CM, VENTANA_S)
 
@@ -37,11 +39,16 @@ def pitar(hay_medida):
     except ImportError:                      # fuera de Windows: la campana de la terminal
         print("\a" * (1 if hay_medida else 2), end="", flush=True)
         return
-    if hay_medida:
-        winsound.Beep(1200, 350)
+    try:                                     # sonido del sistema: sale por la salida de audio normal
+        winsound.PlaySound("SystemAsterisk" if hay_medida else "SystemHand",
+                           winsound.SND_ALIAS | winsound.SND_NODEFAULT)
+    except RuntimeError:
+        pass
+    if hay_medida:                           # tono propio, más largo por si la salida tarda en despertar
+        winsound.Beep(1200, 600)
     else:
-        winsound.Beep(600, 250)
-        winsound.Beep(600, 250)
+        winsound.Beep(600, 400)
+        winsound.Beep(600, 400)
 
 
 def _paso(rango, objetivo):
@@ -141,8 +148,9 @@ def guardar_toma(frame, validador, px_por_cm, carpeta=CARPETA, usuario=None):
     dentro de la carpeta de esa persona.
     """
     carpeta = Path(carpeta)
+    raiz = carpeta                                            # carpeta común de todas las personas
     if usuario:
-        carpeta = carpeta / "".join(c if c.isalnum() or c in "-_" else "_" for c in usuario)
+        carpeta = carpeta_usuario(usuario, raiz)
     nombre = "toma_" + time.strftime("%Y%m%d_%H%M%S")
     while (carpeta / nombre).exists():                        # nunca se pisa una toma anterior
         nombre += "_b"
@@ -156,7 +164,13 @@ def guardar_toma(frame, validador, px_por_cm, carpeta=CARPETA, usuario=None):
         escritor.writerows((f"{t:.3f}", f"{d:.2f}") for t, d in validador.historial)
     t_base = None if validador.t_inicio is None or validador.t0 is None \
         else round(validador.t_inicio - validador.t0, 2)
+    perfil = cargar_perfil(usuario, raiz) if usuario else None
+    if perfil is not None:
+        perfil = {k: v for k, v in perfil.items() if k != "usuario"}   # copia de los datos de ese momento
     resumen = {
+        "usuario": normalizar(usuario) if usuario else None,
+        "perfil": perfil,
+        "fecha": time.strftime("%Y-%m-%d %H:%M:%S"),
         "estado": validador.estado,
         "medida_cm": None if validador.estado != TERMINADA else round(validador.mejor, 1),
         "mejor_candidata_cm": None if validador.mejor is None else round(validador.mejor, 1),

@@ -9,7 +9,7 @@ from flexscan import usuarios
 
 ANCHO, ALTO = 700, 530
 CARPETA_PATRONES = Path(__file__).resolve().parents[2] / "patrones"
-MAX_NOMBRE = 20
+MAX_NOMBRE = 30
 
 # Rectángulos de la pantalla (x0, y0, x1, y1), en píxeles
 CAJA_NOMBRE = (50, 80, 650, 120)
@@ -42,8 +42,9 @@ def _dentro(x, y, rect):
 class Formulario:
     """Estado del formulario (nombre, clave elegida, mensaje) y su dibujo."""
 
-    def __init__(self, ruta=usuarios.RUTA):
+    def __init__(self, ruta=usuarios.RUTA, con_perfil=False):
         self.ruta = ruta
+        self.con_perfil = con_perfil     # True: tras validar, pedir_registro pide los datos personales
         self.nombre = ""
         self.secuencia = []
         self.mensaje = ""
@@ -81,15 +82,25 @@ class Formulario:
             self.resultado = "cancelado"
 
     def guardar(self):
-        """Guarda al usuario; si algo no es válido, deja el motivo en el mensaje."""
+        """Guarda al usuario; si algo no es válido, deja el motivo en el mensaje.
+
+        Con con_perfil solo valida y deja el resultado en "validado": el usuario se guarda
+        después, cuando se hayan pedido los datos personales.
+        """
         try:
-            usuarios.registrar(self.nombre, self.secuencia, self.ruta)
+            if self.con_perfil:
+                usuarios.validar(self.nombre, self.secuencia, self.ruta)
+            else:
+                usuarios.registrar(self.nombre, self.secuencia, self.ruta)
         except usuarios.ErrorUsuario as error:
             texto = _ascii(str(error))
             self.mensaje = texto[:1].upper() + texto[1:]
         else:
-            self.mensaje = "Usuario registrado"
-            self.resultado = "guardado"
+            if self.con_perfil:
+                self.resultado = "validado"
+            else:
+                self.mensaje = "Usuario registrado"
+                self.resultado = "guardado"
 
     def _imagen(self, simbolo, lado):
         """Imagen del símbolo desde patrones/, a tamaño lado x lado (se carga una vez)."""
@@ -107,7 +118,7 @@ class Formulario:
         cv2.rectangle(lienzo, (0, 0), (ANCHO, 50), AZUL_OSCURO, -1)
         cv2.putText(lienzo, "Registro de usuario", (20, 34), FUENTE, 0.9, BLANCO, 2)
 
-        cv2.putText(lienzo, "Nombre (sin tildes):", (50, 72), FUENTE, 0.55, AZUL_OSCURO, 1)
+        cv2.putText(lienzo, "Nombre y apellido (sin tildes):", (50, 72), FUENTE, 0.55, AZUL_OSCURO, 1)
         cv2.rectangle(lienzo, CAJA_NOMBRE[:2], CAJA_NOMBRE[2:], BLANCO, -1)
         cv2.rectangle(lienzo, CAJA_NOMBRE[:2], CAJA_NOMBRE[2:], AZUL_OSCURO, 2)
         cv2.putText(lienzo, self.nombre + "_", (60, 108), FUENTE, 0.8, AZUL_OSCURO, 2)
@@ -143,10 +154,8 @@ class Formulario:
         return lienzo
 
 
-def pedir_registro(ruta=usuarios.RUTA):
-    """Abre la pantalla de registro. Devuelve True si se ha guardado un usuario."""
-    formulario = Formulario(ruta)
-    ventana = "FlexScan - Registro"
+def _ejecutar(formulario, ventana):
+    """Muestra el formulario hasta que termina (resultado distinto de None) y cierra la ventana."""
     cv2.namedWindow(ventana)
 
     def raton(evento, x, y, flags, parametro):
@@ -163,4 +172,37 @@ def pedir_registro(ruta=usuarios.RUTA):
         cv2.imshow(ventana, formulario.dibujar())
         cv2.waitKey(1200)                            # deja ver «Usuario registrado»
     cv2.destroyWindow(ventana)
+
+
+def pedir_registro(ruta=usuarios.RUTA, con_perfil=True, carpeta_perfiles=None):
+    """Abre la pantalla de registro. Devuelve True si se ha guardado un usuario.
+
+    Con con_perfil, después de validar el nombre y la clave se piden la edad, el sexo, la altura
+    y el peso; el usuario y su perfil se guardan juntos y, si se cancelan los datos personales,
+    no se guarda nada y se vuelve al formulario.
+    """
+    from flexscan import perfil                      # aquí, porque perfil usa funciones de este módulo
+    carpeta = carpeta_perfiles or perfil.CARPETA
+    formulario = Formulario(ruta, con_perfil)
+    ventana = "FlexScan - Registro"
+    while True:
+        formulario.resultado = None
+        _ejecutar(formulario, ventana)
+        if formulario.resultado != "validado":
+            break
+        datos = perfil.pedir_perfil(formulario.nombre)
+        if datos is None:
+            formulario.mensaje = "Faltan los datos personales"
+            continue
+        try:
+            usuarios.registrar(formulario.nombre, formulario.secuencia, ruta)
+        except usuarios.ErrorUsuario as error:
+            texto = _ascii(str(error))
+            formulario.mensaje = texto[:1].upper() + texto[1:]
+            continue
+        perfil.guardar_perfil(formulario.nombre, datos, carpeta)
+        formulario.mensaje = "Usuario registrado"
+        formulario.resultado = "guardado"
+        _ejecutar(formulario, ventana)               # muestra la confirmación
+        break
     return formulario.resultado == "guardado"
