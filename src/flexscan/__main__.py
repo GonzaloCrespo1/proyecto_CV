@@ -27,6 +27,7 @@ from flexscan.medida import (DistanciaDedoPie, FALLIDA, MedidaValida, MIDIENDO, 
                              dibujar_distancia, dibujar_estado)
 from flexscan.instrucciones import mostrar_instrucciones
 from flexscan.perfil import cargar_perfil
+from flexscan.preparacion import Preparacion
 from flexscan.registro_medida import guardar_toma, pitar
 from flexscan.zona import (AMARILLO, FRAMES_CONFIRMACION, ROJO, VERDE, caja_colocacion,
                            dibujar_caja, esta_dentro)
@@ -56,6 +57,7 @@ def main():
     usuario = None 
     perfil = None
     ultimo_acceso = None                 # último acceso cancelado, para conservar sus fallos
+    preparacion = Preparacion(fondo)     # cuenta atrás y aprendizaje automático del fondo
     
     print("Teclas: 'c' corregida, 'm' máscara, 't' tarjeta, 'r' registro, 'e' entrar, 's' cerrar sesión, 'f' aprender fondo, 'b' silueta, 'v' caja y centro, 'p' puntos, 'n' nueva medida, 'k' calibrar la escala, 'q' salir") 
     
@@ -116,6 +118,8 @@ def main():
                 ultimo_acceso = None
                 if not mostrar_instrucciones():     # ventana de instrucciones; Esc = no continuar
                     usuario, perfil = None, None
+                else:
+                    preparacion.empezar(time.monotonic())   # 5 s para apartarse y aprender el fondo
             
             
         if ver_mascara and mascara is not None:
@@ -152,7 +156,7 @@ def main():
             dibujar_distancia(frame, puntos, distancia, px_por_cm)
             dibujar_estado(frame, validador, px_por_cm)
             
-        if fondo.aprendiendo:                             
+        if fondo.aprendiendo and not preparacion.activa:                             
             cv2.putText(frame, f"Aprendiendo fondo: {fondo.restantes}",   
                         (10, 110), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 165, 255), 2)   
         
@@ -182,6 +186,8 @@ def main():
         if px_por_cm is None:
             dibujar_aviso_calibracion(frame)      # bloquea el recorrido hasta calibrar
 
+        preparacion.actualizar(ahora)
+        preparacion.dibujar(frame, ahora)
         cv2.imshow("FlexScan", frame)
         if aviso:                                  # la medida acaba de terminar: guardar y avisar
             ruta = guardar_toma(frame, validador, px_por_cm, usuario=usuario)
@@ -223,7 +229,8 @@ def main():
             estabilizador = Estabilizador()
         if tecla == ord("s"):
             usuario = None
-            perfil = None          
+            perfil = None
+            preparacion.cancelar()          
         if tecla == ord("f"):
             fondo.aprender()     
         if tecla == ord("b"):
