@@ -21,6 +21,7 @@ from flexscan.grafica import GraficaGanancia
 from flexscan.quietud import Quietud
 from flexscan.puntos import DetectorPose, dibujar_puntos
 from flexscan.escala import cargar_escala
+from flexscan.escala_en_vivo import calibrar_sobre_foto, dibujar_aviso_calibracion
 from flexscan.medida import (DistanciaDedoPie, FALLIDA, MedidaValida, MIDIENDO, TERMINADA,
                              dibujar_distancia, dibujar_estado)
 from flexscan.registro_medida import guardar_toma, pitar
@@ -51,7 +52,7 @@ def main():
     acceso = None
     usuario = None 
     
-    print("Teclas: 'c' corregida, 'm' máscara, 't' tarjeta, 'r' registro, 'e' entrar, 's' cerrar sesión, 'f' aprender fondo, 'b' silueta, 'v' caja y centro, 'p' puntos, 'n' nueva medida, 'q' salir") 
+    print("Teclas: 'c' corregida, 'm' máscara, 't' tarjeta, 'r' registro, 'e' entrar, 's' cerrar sesión, 'f' aprender fondo, 'b' silueta, 'v' caja y centro, 'p' puntos, 'n' nueva medida, 'k' calibrar la escala, 'q' salir") 
     
 
     while True:
@@ -62,6 +63,7 @@ def main():
 
         if corregir:
             frame = corrector.corregir(frame)
+        limpio = frame.copy()                # fotograma sin dibujos, por si se calibra la escala (k)
             
         primer_plano = fondo.aplicar(frame)
         silueta, caja, centro = None, None, None
@@ -168,6 +170,9 @@ def main():
                         cv2.FONT_HERSHEY_SIMPLEX, 1.2, VERDE, 3)
         dibujar_caja(frame, caja_zona, color)
 
+        if px_por_cm is None:
+            dibujar_aviso_calibracion(frame)      # bloquea el recorrido hasta calibrar
+
         cv2.imshow("FlexScan", frame)
         if aviso:                                  # la medida acaba de terminar: guardar y avisar
             ruta = guardar_toma(frame, validador, px_por_cm, usuario=usuario)
@@ -177,6 +182,14 @@ def main():
         tecla = cv2.waitKey(1) & 0xFF
         if tecla == ord("q"):
             break
+        if px_por_cm is None and tecla not in (255, ord("q"), ord("k"), ord("c")):
+            print("Falta la calibración de distancia: pulsa 'k' con la hoja A4 en el sitio del ejercicio")
+            tecla = 255                            # sin calibrar solo valen k, c y q
+        if tecla == ord("k"):
+            nueva = calibrar_sobre_foto(limpio, "FlexScan", espera_ms=1500)
+            if nueva is not None:
+                px_por_cm = nueva
+                validador.reiniciar()
         if tecla == ord("c"):
             corregir = not corregir
         if tecla == ord("m"):
