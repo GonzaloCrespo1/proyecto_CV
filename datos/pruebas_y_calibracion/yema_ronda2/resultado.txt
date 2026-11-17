@@ -1,0 +1,11 @@
+Ronda 2 de calibracion de la yema del dedo (sit-and-reach de lado, 15 nov 2026)
+Se guardan las coordenadas de cada muestra en calib_datos.csv (calibrar_k2.py):
+dedo (ind), muneca (mun), codo (cod), hombro (hom), cadera (cad) del lado mas visible y la yema marcada a mano (punta). Unidades: pixeles de un fotograma de 1280x720.
+
+Comparacion de formulas (validacion dejando una muestra fuera, n = 12), error horizontal medio:
+  sin corregir (punto "dedo" del modelo)        56 px (siempre corto)
+  A  tip = ind + k (ind - mun)                   8 px   <- elegida, k = 1,64 (mediana)
+  D  tip = ind + c |mun - cod| u_antebrazo      10 px
+  B  tip = mun + m (mun - cod)                  12 px
+  longitud fija en pixeles (con o sin direccion) 14-16 px
+El vector muneca -> yema queda a 0-8 grados de la direccion del antebrazo.
