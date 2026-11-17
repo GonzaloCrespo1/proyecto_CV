@@ -23,14 +23,17 @@ from flexscan.quietud import Quietud
 from flexscan.puntos import DetectorPose, dibujar_puntos
 from flexscan.escala import cargar_escala
 from flexscan.escala_en_vivo import calibrar_sobre_foto, dibujar_aviso_calibracion
-from flexscan.medida import (DistanciaDedoPie, FALLIDA, MedidaValida, MIDIENDO, TERMINADA,
+from flexscan.medida import (DistanciaDedoPie, ESPERANDO_BASE, FALLIDA, MedidaValida, MIDIENDO, TERMINADA,
                              dibujar_distancia, dibujar_estado)
 from flexscan.instrucciones import mostrar_instrucciones
 from flexscan.perfil import cargar_perfil
 from flexscan.preparacion import Preparacion
-from flexscan.registro_medida import guardar_toma, pitar
-from flexscan.teclas import (AvisoTecla, MEDIDA, cerrar_auxiliares, cerrar_ventana, fase_actual,
-                              filtrar, normalizar)
+from flexscan.registro_medida import guardar_toma, pitar_fin, pitar_inicio
+from flexscan.pantalla_medida import PantallaMedida
+from flexscan.teclas import (AvisoTecla, BotonTeclas, FASES_BOTON, MEDIDA, RESULTADO, cerrar_auxiliares,
+                              cerrar_ventana, fase_actual, filtrar, normalizar)
+from flexscan.bienvenida import mostrar_bienvenida
+from flexscan.ventana_teclas import VentanaTeclas
 from flexscan.zona import (AMARILLO, FRAMES_CONFIRMACION, ROJO, VERDE, caja_colocacion,
                            dibujar_caja, esta_dentro)
 
@@ -49,7 +52,7 @@ def main():
     ver_tarjeta = False
     ver_silueta = False
     ver_deteccion = False
-    ver_puntos = False
+    ver_puntos = False                   # puntos del cuerpo sobre la imagen (la tecla p los muestra u oculta)
     detector_pose = None
     medida = DistanciaDedoPie()
     validador = MedidaValida()           # decide cuándo la medida es válida
@@ -62,6 +65,12 @@ def main():
     preparacion = Preparacion(fondo)     # cuenta atrás y aprendizaje automático del fondo
     aviso_tecla = AvisoTecla()           # aviso en pantalla de una tecla fuera de su fase
     fase_anterior = None
+    boton_teclas = BotonTeclas()         # botón «Teclas (H)» de la pantalla principal
+    pantalla_medida = PantallaMedida()   # guía de la medida y pantalla de resultado
+    ventana_teclas = VentanaTeclas()     # ventana de teclas: en verde las que valen en la fase actual
+    bienvenida_mostrada = False          # presentación del proyecto, una vez calibrada la escala
+    abrir_teclas_al_arrancar = False
+    raton_puesto = False
     
     print("Teclas: 'c' corregida, 'm' máscara, 't' tarjeta, 'r' registro, 'e' entrar, 's' cerrar sesión, 'f' aprender fondo, 'b' silueta, 'v' caja y centro, 'p' puntos, 'n' nueva medida, 'k' calibrar la escala, 'q' salir") 
     
@@ -71,6 +80,13 @@ def main():
         if not ok:
             print("No se pudo leer el fotograma")
             break
+
+        if px_por_cm is not None and not bienvenida_mostrada:    # presentación del proyecto al arrancar
+            mostrar_bienvenida()
+            bienvenida_mostrada = True
+            abrir_teclas_al_arrancar = True      # y justo después, la ventana de teclas
+            estabilizador = Estabilizador()
+            continue
 
         if corregir:
             frame = corrector.corregir(frame)
@@ -88,25 +104,31 @@ def main():
                              caja_zona)
         seguidos = seguidos + 1 if dentro and centro is not None else 0
         colocado = seguidos >= FRAMES_CONFIRMACION
-        puntos = detector_pose.detectar(frame) if ver_puntos and colocado else {}
-        distancia = medida.actualizar(puntos) if ver_puntos else None
+        en_medida = px_por_cm is not None and usuario is not None and not preparacion.activa
+        midiendo = en_medida and validador.estado not in (TERMINADA, FALLIDA)
+        puntos = detector_pose.detectar(frame) if midiendo and colocado else {}
+        distancia = medida.actualizar(puntos) if midiendo else None
         aviso = False
-        if ver_puntos:
+        if en_medida:                              # la medida corre sola en cuanto acaba la preparación
             estado_antes = validador.estado
             validador.actualizar(distancia, px_por_cm, quieta, colocado)
             aviso = estado_antes not in (TERMINADA, FALLIDA) and validador.estado in (TERMINADA, FALLIDA)
+            if estado_antes == ESPERANDO_BASE and validador.estado == MIDIENDO:
+                pitar_inicio()                     # pitido agudo: ya puede empezar el estiramiento
 
         mascara = None
         esquinas = None
         lectura = None
-        if usuario is None:
+        buscando_patron = acceso is not None          # solo se busca el patrón de símbolos durante el acceso
+        if usuario is None and (buscando_patron or ver_mascara or ver_tarjeta):
             mascara = preprocesar(frame)
             esquinas = buscar_marco(mascara)
             if esquinas is not None:
                 tarjeta = enderezar(frame, esquinas)
                 rasgos, formas = medir_rasgos(tarjeta)
                 lectura = clasificar(rasgos)
-                dibujar_marco(frame, esquinas)
+                if buscando_patron or ver_tarjeta:      # el marco verde solo se ve cuando importa
+                    dibujar_marco(frame, esquinas)
 
         simbolo = estabilizador.actualizar(lectura)          
 
@@ -123,14 +145,23 @@ def main():
                 if not mostrar_instrucciones():     # ventana de instrucciones; Esc = no continuar
                     usuario, perfil = None, None
                 else:
+                    if detector_pose is None:
+                        detector_pose = DetectorPose()      # el modelo tarda en cargar: se prepara antes de la cuenta atrás
+                    validador.reiniciar()
                     preparacion.empezar(time.monotonic())   # 5 s para apartarse y aprender el fondo
 
+        fondo_listo = fondo.mog is not None and not fondo.aprendiendo
         fase = fase_actual(px_por_cm is not None, acceso is not None, usuario is not None,
                            preparacion.activa, validador.estado)
         if fase != fase_anterior:                  # al avanzar en el programa, se cierran las ventanas de depuración
             ver_mascara = ver_tarjeta = ver_silueta = ver_deteccion = False
             cerrar_auxiliares()
             fase_anterior = fase
+        if abrir_teclas_al_arrancar:
+            ventana_teclas.abrir(fase, fondo_listo, arranque=True)
+            abrir_teclas_al_arrancar = False
+        ventana_teclas.actualizar(fase, fondo_listo)     # el verde sigue a la fase actual
+
 
         if ver_mascara and mascara is not None:
             cv2.imshow("Mascara", mascara)
@@ -161,10 +192,9 @@ def main():
                            (255, 0, 0), cv2.MARKER_CROSS, 30, 2) 
         if ver_deteccion:
             cv2.imshow("Ganancia K", grafica.dibujar())
-        if ver_puntos:
+        if ver_puntos and fase == MEDIDA:          # puntos del cuerpo y distancia; la tecla p los oculta
             dibujar_puntos(frame, puntos)
             dibujar_distancia(frame, puntos, distancia, px_por_cm)
-            dibujar_estado(frame, validador, px_por_cm)
             
         if fondo.aprendiendo and not preparacion.activa:                             
             cv2.putText(frame, f"Aprendiendo fondo: {fondo.restantes}",   
@@ -183,37 +213,51 @@ def main():
         if usuario is not None:                                                     
             dibujar_usuario(frame, usuario, perfil)
 
-        if colocado and quieta:
-            color = VERDE
-        else:
-            color = AMARILLO if colocado else ROJO
-        if colocado and quieta and validador.estado == MIDIENDO and validador.mejor is None:
-            cv2.putText(frame, "COMENZAR ESTIRAMIENTO",
-                        (caja_zona[0] + 20, caja_zona[1] + 50),
-                        cv2.FONT_HERSHEY_SIMPLEX, 1.2, VERDE, 3)
-        dibujar_caja(frame, caja_zona, color)
+        if fase == MEDIDA:                         # la zona de colocación solo se ve al medir
+            if colocado and quieta:
+                color = VERDE
+            else:
+                color = AMARILLO if colocado else ROJO
+            dibujar_caja(frame, caja_zona, color)
 
         if px_por_cm is None:
             dibujar_aviso_calibracion(frame)      # bloquea el recorrido hasta calibrar
 
+        if aviso:                                  # imagen de la toma, antes de dibujar la pantalla de resultado
+            captura = frame.copy()
+            dibujar_puntos(captura, puntos)
+            dibujar_distancia(captura, puntos, distancia, px_por_cm)
+            dibujar_estado(captura, validador, px_por_cm)
+        pantalla_medida.dibujar(frame, ahora, fase, colocado, quieta, validador)   # guía o resultado
+
         preparacion.actualizar(ahora)
         preparacion.dibujar(frame, ahora)
         aviso_tecla.dibujar(frame, ahora)
+        boton_teclas.dibujar(frame, fase in FASES_BOTON)
         cv2.imshow("FlexScan", frame)
+        if not raton_puesto:                       # el ratón de la ventana principal sirve para el botón
+            cv2.setMouseCallback("FlexScan", boton_teclas.raton)
+            raton_puesto = True
         if aviso:                                  # la medida acaba de terminar: guardar y avisar
-            ruta = guardar_toma(frame, validador, px_por_cm, usuario=usuario)
+            ruta = guardar_toma(captura, validador, px_por_cm, usuario=usuario)
             print(f"Medida {validador.estado}: guardada en {ruta}")
-            pitar(validador.estado == TERMINADA)
+            pitar_fin(validador.estado == TERMINADA)       # pitido grave: la medida ha terminado
 
         tecla = normalizar(cv2.waitKey(1) & 0xFF)
         if tecla == ord("q"):
             break
-        tecla = filtrar(tecla, fase, aviso_tecla, ahora)     # una tecla fuera de su fase no hace nada
+        if tecla == 27 and ventana_teclas.abierta:           # Esc cierra primero la ventana de teclas
+            ventana_teclas.cerrar()
+            tecla = 255
+        tecla = filtrar(tecla, fase, aviso_tecla, ahora, fondo_listo)     # una tecla fuera de su fase no hace nada
         if tecla == ord("k"):
             nueva = calibrar_sobre_foto(limpio, "FlexScan", espera_ms=1500)
             if nueva is not None:
                 px_por_cm = nueva
                 validador.reiniciar()
+                if fase in (MEDIDA, RESULTADO):
+                    aviso_tecla.mostrar("Escala recalibrada: la medida se ha descartado.", time.monotonic())
+            raton_puesto = False                   # la calibración cambia el ratón de la ventana
         if tecla == ord("c"):
             corregir = not corregir
         if tecla == ord("m"):
@@ -244,6 +288,7 @@ def main():
                 usuario = None
                 perfil = None
                 preparacion.cancelar()
+                validador.reiniciar()               # la próxima sesión empieza de cero
         if tecla == ord("f"):
             fondo.aprender()     
         if tecla == ord("b"):
@@ -256,10 +301,11 @@ def main():
                 cerrar_ventana("Ganancia K")
         if tecla == ord("n"):
             validador.reiniciar()
-        if tecla == ord("p"):
-            if detector_pose is None:
-                detector_pose = DetectorPose()
+        if tecla == ord("p"):                      # muestra u oculta los puntos; la medida no se ve afectada
             ver_puntos = not ver_puntos
+        clic_teclas = boton_teclas.pulsado()
+        if tecla == ord("h") or (clic_teclas and fase in FASES_BOTON):    # ventana de teclas
+            ventana_teclas.alternar(fase, fondo_listo)
         
 
     cap.release()

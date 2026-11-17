@@ -1,4 +1,4 @@
-"""Aviso sonoro y registro de cada medida: captura, gráfica, serie temporal y resumen.
+"""Pitidos y registro de cada medida: captura, gráfica, serie temporal y resumen.
 
 Al terminar una medida (con valor o sin él) se crea una carpeta por toma, con la fecha y la
 hora en el nombre para que ninguna toma pise a otra, y dentro cuatro ficheros:
@@ -10,9 +10,12 @@ hora en el nombre para que ninguna toma pise a otra, y dentro cuatro ficheros:
       resumen.json  estado, medida, línea base, tiempos y parámetros
 """
 import csv
+import io
 import json
 import math
+import threading
 import time
+import wave
 from pathlib import Path
 
 import cv2
@@ -32,23 +35,75 @@ AZUL, TURQUESA, NARANJA = (63, 38, 18), (138, 138, 31), (58, 131, 232)    # BGR
 GRIS, GRIS_CLARO = (120, 120, 120), (215, 215, 215)
 
 
-def pitar(hay_medida):
-    """Un pitido si hay medida y dos si no la hay, para saber cuándo se puede parar."""
-    try:
-        import winsound
-    except ImportError:                      # fuera de Windows: la campana de la terminal
-        print("\a" * (1 if hay_medida else 2), end="", flush=True)
-        return
-    try:                                     # sonido del sistema: sale por la salida de audio normal
-        winsound.PlaySound("SystemAsterisk" if hay_medida else "SystemHand",
-                           winsound.SND_ALIAS | winsound.SND_NODEFAULT)
-    except RuntimeError:
-        pass
-    if hay_medida:                           # tono propio, más largo por si la salida tarda en despertar
-        winsound.Beep(1200, 600)
-    else:
-        winsound.Beep(600, 400)
-        winsound.Beep(600, 400)
+# Pitidos: lista de (frecuencia en Hz, duración en ms); None en la frecuencia es un silencio
+PITIDO_INICIO = [(1600, 250), (None, 120), (1600, 250)]      # agudo: empieza el estiramiento
+PITIDO_FIN = [(450, 1000)]                                   # grave: termina la medida
+PITIDO_SIN_MEDIDA = [(450, 350), (None, 150), (450, 350)]    # grave doble: termina sin medida
+
+
+FRECUENCIA_MUESTREO = 44100
+ARRANQUE_S = 0.30            # silencio inicial: despierta la salida de audio (altavoces o auriculares) antes del tono
+_sonidos = {}
+
+
+def _wav(secuencia):
+    """Sonido en memoria (WAV mono de 16 bits) con la secuencia de tonos y silencios, con un silencio inicial."""
+    if tuple(secuencia) not in _sonidos:
+        trozos = [np.zeros(int(ARRANQUE_S * FRECUENCIA_MUESTREO))]
+        for frecuencia, ms in secuencia:
+            n = int(ms / 1000 * FRECUENCIA_MUESTREO)
+            if frecuencia is None:
+                trozos.append(np.zeros(n))
+                continue
+            t = np.arange(n) / FRECUENCIA_MUESTREO
+            borde = min(n // 2, int(0.01 * FRECUENCIA_MUESTREO))             # 10 ms de subida y bajada: sin chasquidos
+            envolvente = np.ones(n)
+            envolvente[:borde] = np.linspace(0, 1, borde)
+            envolvente[n - borde:] = np.linspace(1, 0, borde)
+            trozos.append(0.8 * envolvente * np.sin(2 * math.pi * frecuencia * t))
+        datos = (np.concatenate(trozos) * 32767).astype("<i2").tobytes()
+        memoria = io.BytesIO()
+        with wave.open(memoria, "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(FRECUENCIA_MUESTREO)
+            w.writeframes(datos)
+        _sonidos[tuple(secuencia)] = memoria.getvalue()
+    return _sonidos[tuple(secuencia)]
+
+
+def _tocar(secuencia):
+    """Toca la secuencia en un hilo aparte, para no parar el vídeo mientras suena."""
+    def tocar():
+        try:
+            import winsound
+        except ImportError:                  # fuera de Windows: la campana de la terminal
+            print("\a", end="", flush=True)
+            return
+        try:                                 # por la salida de audio normal, como cualquier sonido del sistema
+            winsound.PlaySound(_wav(secuencia), winsound.SND_MEMORY | winsound.SND_NODEFAULT)
+        except Exception:                    # si falla, el altavoz del sistema
+            for frecuencia, ms in secuencia:
+                if frecuencia is None:
+                    time.sleep(ms / 1000)
+                    continue
+                try:
+                    winsound.Beep(frecuencia, ms)
+                except RuntimeError:
+                    pass
+    threading.Thread(target=tocar, daemon=True).start()
+
+
+def pitar_inicio():
+    """Pitido agudo: la persona puede empezar el estiramiento."""
+    print("[FlexScan] Pitido de inicio: ya puedes extender los brazos.", flush=True)
+    _tocar(PITIDO_INICIO)
+
+
+def pitar_fin(hay_medida):
+    """Pitido grave: la medida ha terminado (uno largo si hay medida, dos cortos si no la hay)."""
+    print("[FlexScan] Pitido final:", "medida realizada." if hay_medida else "sin medida.", flush=True)
+    _tocar(PITIDO_FIN if hay_medida else PITIDO_SIN_MEDIDA)
 
 
 def _paso(rango, objetivo):
