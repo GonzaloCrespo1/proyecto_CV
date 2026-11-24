@@ -35,3 +35,6 @@ datos/en_vivo/
 
 # Ficheros temporales de Word y Excel mientras un documento está abierto
 ~$*
+
+# Fuente editable del cuaderno de C11: en el repo solo va el PDF
+FlexScan_Explicaciones_tecnicas_GONZALO.docx
