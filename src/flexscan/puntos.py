@@ -20,7 +20,9 @@ K_YEMA = 1.15              # prolongación muñeca -> nudillo en máxima flexió
 class DetectorPose:
     def __init__(self):
         opciones = vision.PoseLandmarkerOptions(
-            base_options=tareas.BaseOptions(model_asset_path=str(RUTA_MODELO)),
+            # Se pasa el contenido y no la ruta: MediaPipe no abre rutas con caracteres no ASCII
+            # en Windows (p. ej. «3º» en el nombre de una carpeta).
+            base_options=tareas.BaseOptions(model_asset_buffer=RUTA_MODELO.read_bytes()),
             running_mode=vision.RunningMode.VIDEO)
         self.detector = vision.PoseLandmarker.create_from_options(opciones)
         self.t0 = time.time()
