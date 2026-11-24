@@ -1,12 +1,10 @@
-# C11 · Conjunto de datos sintético y modelos del valor esperado
+# C11 · Conjunto de datos sintético y modelo del valor esperado
 
-Carpeta del bloque C11 (Gonzalo Crespo Comín). Contiene lo necesario para **crear el conjunto de datos** y **entrenar los tres modelos** que estiman, para una persona de cierta edad, altura, peso y sexo, el resultado esperado en cada ejercicio de FlexScan:
+Carpeta del bloque C11 (Gonzalo Crespo Comín). Contiene lo necesario para **crear el conjunto de datos** y **entrenar el modelo** que estima, para una persona de cierta edad, altura, peso y sexo, el resultado esperado en el ejercicio de FlexScan:
 
 | Ejercicio | Columna | Unidad |
 |---|---|---|
-| Sit-and-reach (sentado) | `sit_reach_cm` | cm respecto a la punta de los pies |
-| Apertura de piernas (de pie) | `apertura_piernas_grados` | grados entre las dos piernas |
-| Elevación de brazo (de perfil) | `elevacion_brazo_grados` | grados; 0 = brazo junto al cuerpo |
+| Sit-and-reach (sentado) | `sit_reach_cm` | cm respecto a la vertical de la punta del pie: negativo si no llega, positivo si la supera |
 
 ## Ficheros
 
@@ -14,10 +12,10 @@ Carpeta del bloque C11 (Gonzalo Crespo Comín). Contiene lo necesario para **cre
 |---|---|
 | `preparar_datos.py` | Limpia el conjunto de Kaggle (solo se usa su correlación IMC – sit-and-reach). |
 | `generar_dataset.py` | Genera `datos/dataset_sintetico.csv` (semilla fija). |
+| `entrenar_modelos.py` | Compara seis modelos con validación cruzada y test, y elige el más sencillo que empata con el mejor (Ridge, σ = 9,27 cm). |
 | `fuentes/DEMO_L.xpt`, `fuentes/BMX_L.xpt` | NHANES 2021–2023: edad, sexo, altura y peso (dominio público). |
-| `fuentes/DU4111.txt` | NHANES I 1971–75, fichero 4111: abducción de cadera (dominio público). |
-| `datos/dataset_sintetico.csv` | Conjunto final: 4663 personas, 7 columnas. |
-| `modelos/`, `figuras/` | Se crearán al entrenar los modelos. |
+| `datos/dataset_sintetico.csv` | Conjunto final: 4663 personas, 5 columnas (edad, altura, peso, sexo y sit-and-reach). |
+| `modelos/`, `figuras/` | Se crearán al guardar el modelo y sus gráficas. |
 
 ## Cómo regenerar el conjunto
 
