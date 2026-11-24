@@ -32,3 +32,6 @@ datos/escala_foto.jpg
 
 # Tomas guardadas automaticamente por el programa (una carpeta por toma y, con login, por usuario)
 datos/en_vivo/
+
+# Ficheros temporales de Word y Excel mientras un documento está abierto
+~$*
