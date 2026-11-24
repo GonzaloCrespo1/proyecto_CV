@@ -1,3 +1,6 @@
 # Datos de Kaggle: no se suben hasta confirmar su licencia
 fuentes/bodyPerformanceKaggle.csv
 datos/sit_and_reach_limpio.csv
+
+# Medidas de personas reales (datos personales): solo en local
+datos/medidas_reales.csv
