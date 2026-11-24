@@ -16,8 +16,8 @@ class ErrorUsuario(Exception):
 
 
 def normalizar(nombre):
-    """Quita espacios y mayúsculas: 'Mateo ' y 'mateo' son el mismo usuario."""
-    return nombre.strip().lower()
+    """Quita espacios sobrantes y mayúsculas: 'Mateo  Gomez ' y 'mateo gomez' son el mismo usuario."""
+    return " ".join(nombre.split()).lower()
 
 
 def _hash(secuencia, sal):
@@ -30,7 +30,8 @@ def _leer(ruta):
     if not Path(ruta).exists():
         return {}
     with open(ruta, encoding="utf-8") as f:
-        return json.load(f)
+        texto = f.read()
+    return json.loads(texto) if texto.strip() else {}      # un fichero vacío es «sin usuarios»
 
 
 def _escribir(datos, ruta):
@@ -42,18 +43,26 @@ def existe(nombre, ruta=RUTA):
     return normalizar(nombre) in _leer(ruta)
 
 
-def registrar(nombre, secuencia, ruta=RUTA):
-    """Guarda un usuario nuevo. Lanza ErrorUsuario si algo no es válido."""
+def validar(nombre, secuencia, ruta=RUTA):
+    """Comprueba que se puede registrar ese usuario, sin guardar nada. Lanza ErrorUsuario si no."""
     clave = normalizar(nombre)
     if not clave:
         raise ErrorUsuario("el nombre está vacío")
+    if len(clave.split()) < 2:
+        raise ErrorUsuario("escribe nombre y apellido")
     if len(secuencia) != LONGITUD:
         raise ErrorUsuario(f"la secuencia debe tener {LONGITUD} símbolos")
     if any(s not in SIMBOLOS for s in secuencia):
         raise ErrorUsuario("la secuencia contiene un símbolo desconocido")
-    datos = _leer(ruta)
-    if clave in datos:
+    if clave in _leer(ruta):
         raise ErrorUsuario("ese usuario ya existe")
+
+
+def registrar(nombre, secuencia, ruta=RUTA):
+    """Guarda un usuario nuevo. Lanza ErrorUsuario si algo no es válido."""
+    validar(nombre, secuencia, ruta)
+    clave = normalizar(nombre)
+    datos = _leer(ruta)
     sal = os.urandom(16)
     datos[clave] = {"sal": sal.hex(), "hash": _hash(secuencia, sal).hex()}
     _escribir(datos, ruta)
