@@ -20,6 +20,9 @@ Fuera de 20-69 años, el valor es una extrapolación de la misma fórmula.
 ERROR. RMSE en un 20 % de test apartado: 9,27 cm. Es también sigma, la desviación típica de los
 residuos, que sirve para el veredicto: z = (medida_cm - valor_ml) / sigma. El modelo está a 0,01 cm
 del mejor posible con estas entradas: casi toda la variación entre personas no la explica el perfil.
+
+VEREDICTO (acordado con Mateo). Con |z| <= 1 la persona está EN LA MEDIA para su perfil (unas 2 de
+cada 3 personas); por debajo de -1, POCO FLEXIBLE; por encima de +1, MUY FLEXIBLE.
 Explicación completa en FlexScan_Explicaciones_tecnicas_GONZALO.docx.
 """
 import json
@@ -30,6 +33,7 @@ MODELO_LISTO = True            # False: la pantalla enseña «valor_ml» pendien
 
 RUTA_MODELO = Path(__file__).resolve().parents[2] / "modelos" / "sit_reach.joblib"
 SEXO = {"hombre": 1, "mujer": 0}
+UMBRAL_Z = 1.0                 # |z| <= UMBRAL_Z: en la media para su perfil
 
 
 def cargar_resumen(ruta_toma):
@@ -67,6 +71,20 @@ def predecir_valor_ml(ruta_toma):
     guardado = cargar_modelo()
     fila = pd.DataFrame([datos])[guardado["entradas"]]      # mismas columnas y orden que al entrenar
     return round(float(guardado["modelo"].predict(fila)[0]), 1)
+
+
+def veredicto(medida_cm, valor_ml):
+    """Compara la medida con el valor esperado: devuelve (z, categoría).
+    z = (medida - esperado) / sigma: cuántas desviaciones típicas se aparta la persona de lo
+    típico para su perfil. Negativo, menos flexible de lo esperado; positivo, más."""
+    z = round((medida_cm - valor_ml) / sigma_cm(), 2)     # se clasifica con el mismo z que se enseña
+    if z < -UMBRAL_Z:
+        categoria = "POCO FLEXIBLE"
+    elif z > UMBRAL_Z:
+        categoria = "MUY FLEXIBLE"
+    else:
+        categoria = "EN LA MEDIA"
+    return z, categoria
 
 
 # Carga al arrancar el programa (__main__.py importa este módulo al empezar): la primera carga de
