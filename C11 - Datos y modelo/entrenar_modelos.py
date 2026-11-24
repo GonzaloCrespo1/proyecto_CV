@@ -1,11 +1,11 @@
-"""Entrena y compara los modelos del valor esperado, uno por ejercicio (bloque C11).
+"""Entrena y compara los modelos del valor esperado del sit-and-reach (bloque C11).
 
-Para cada ejercicio (sit-and-reach, apertura de piernas y elevación de brazo) se buscan los
-hiperparámetros de cada modelo candidato con validación cruzada sobre el 80 % de los datos.
-El 20 % de test se aparta al principio, el mismo para los tres ejercicios, y solo se usa al
-final: cada modelo, reentrenado con todo el 80 %, se evalúa una vez en test. Con un bootstrap
-emparejado se decide qué modelos no son peores que el mejor y, entre ellos, se elige el más
-sencillo (parsimonia). Por último se calcula sigma, la dispersión de los residuos en test.
+Para cada modelo candidato se buscan los hiperparámetros con validación cruzada sobre el
+80 % de los datos. El 20 % de test se aparta al principio y solo se usa al final: cada modelo,
+reentrenado con todo el 80 %, se evalúa una vez en test. Con un bootstrap emparejado se decide
+qué modelos no son peores que el mejor y, entre ellos, se elige el más sencillo (parsimonia).
+Por último se calcula sigma, la dispersión de los residuos en test, y el modelo elegido se
+reentrena con el 100 % de los datos y se guarda en modelos/sit_reach.joblib.
 
 Uso (desde la raíz del repositorio):
     python "C11 - Datos y modelo/entrenar_modelos.py"
@@ -13,8 +13,11 @@ Uso (desde la raíz del repositorio):
 
 from pathlib import Path
 
+import joblib
 import numpy as np
 import pandas as pd
+import sklearn
+from sklearn.base import clone
 from sklearn.compose import TransformedTargetRegressor
 from sklearn.dummy import DummyRegressor
 from sklearn.ensemble import HistGradientBoostingRegressor, RandomForestRegressor
@@ -27,6 +30,7 @@ from sklearn.svm import SVR
 
 CARPETA = Path(__file__).resolve().parent
 DATOS = CARPETA / "datos" / "dataset_sintetico.csv"
+MODELO = CARPETA.parent / "modelos" / "sit_reach.joblib"   # carpeta modelos/ de la raíz
 
 SEMILLA = 2026
 FRACCION_TEST = 0.20
@@ -34,16 +38,12 @@ PLIEGUES = KFold(n_splits=5, shuffle=True, random_state=SEMILLA)
 REMUESTREOS = 1000
 
 ENTRADAS = ["edad", "altura_cm", "peso_kg", "sexo"]
-EJERCICIOS = {
-    "sit_reach": "sit_reach_cm",
-    "piernas": "apertura_piernas_grados",
-    "brazo": "elevacion_brazo_grados",
-}
+OBJETIVO = "sit_reach_cm"            # cm respecto a la vertical del pie (negativo si no llega)
 METRICAS = {"rmse": "neg_root_mean_squared_error", "mae": "neg_mean_absolute_error", "r2": "r2"}
 
 
 def cargar_y_partir():
-    """Lee el conjunto y separa un 20 % de test, el mismo para todos los ejercicios."""
+    """Lee el conjunto y separa un 20 % de test, estratificado por sexo."""
     df = pd.read_csv(DATOS)
     entreno, test = train_test_split(df, test_size=FRACCION_TEST, random_state=SEMILLA,
                                      stratify=df["sexo"])
@@ -54,8 +54,8 @@ def candidatos():
     """Modelos candidatos con su rejilla de hiperparámetros, de más sencillo a más complejo.
     Las entradas se estandarizan dentro de cada pipeline (con la media y la desviación del
     pliegue de entrenamiento). En el SVR y el MLP también se estandariza la salida, para que
-    sus hiperparámetros signifiquen lo mismo en los tres ejercicios aunque estén en cm o en
-    grados. Los árboles (Random Forest y boosting) no necesitan escalado: solo comparan umbrales.
+    sus hiperparámetros (epsilon, alpha) no dependan de que la salida esté en cm. Los árboles
+    (Random Forest y boosting) no necesitan escalado: solo comparan umbrales.
     Las rejillas de los árboles y la red son pequeñas a propósito, para que el tiempo sea razonable."""
     ridge = make_pipeline(StandardScaler(), Ridge())
     svr = TransformedTargetRegressor(regressor=make_pipeline(StandardScaler(), SVR(kernel="rbf")),
@@ -126,36 +126,54 @@ def elegir(errores, rng):
     return tabla, mejor, elegido
 
 
+def guardar(busqueda, nombre, sigma, df):
+    """Reentrena el modelo elegido, con sus mejores hiperparámetros, con el 100 % de los datos
+    y lo guarda junto con sigma y lo necesario para saber de dónde sale."""
+    final = clone(busqueda.best_estimator_).fit(df[ENTRADAS], df[OBJETIVO])
+    MODELO.parent.mkdir(exist_ok=True)
+    joblib.dump({
+        "modelo": final,                        # pipeline completo: escalado + modelo
+        "nombre": nombre,
+        "hiperparametros": busqueda.best_params_,
+        "sigma_cm": sigma,                      # desviación típica de los residuos en test
+        "entradas": ENTRADAS,
+        "objetivo": OBJETIVO,
+        "personas": len(df),
+        "semilla": SEMILLA,
+        "version_sklearn": sklearn.__version__,  # el .joblib solo se abre con esta versión
+    }, MODELO)
+    return final
+
+
 if __name__ == "__main__":
     entreno, test = cargar_y_partir()
     rng = np.random.default_rng(SEMILLA)
     print(f"entrenamiento: {len(entreno)} personas   test (apartado): {len(test)} personas")
-    sigmas = {}
-    for ejercicio, columna in EJERCICIOS.items():
-        X, y = entreno[ENTRADAS], entreno[columna]
-        X_test, y_test = test[ENTRADAS], test[columna]
-        print(f"\n== {ejercicio} ({columna}) · media {y.mean():.1f} · desv. típica {y.std():.1f}")
-        print(f"{'modelo':<14}{'RMSE (CV)':>12}{'± pliegues':>12}{'MAE':>8}{'R²':>8}  mejores hiperparámetros")
-        errores = {}
-        for nombre, (modelo, rejilla) in candidatos().items():
-            busqueda = buscar(modelo, rejilla, X, y)
-            m = resumen(busqueda)
-            print(f"{nombre:<14}{m['rmse']:>12.2f}{m['rmse_desv']:>12.2f}{m['mae']:>8.2f}"
-                  f"{m['r2']:>8.3f}  {m['mejores']}")
-            # GridSearchCV ya ha reentrenado la mejor combinación con todo el 80 %.
-            errores[nombre] = (y_test - busqueda.predict(X_test)).to_numpy()
+    X, y = entreno[ENTRADAS], entreno[OBJETIVO]
+    X_test, y_test = test[ENTRADAS], test[OBJETIVO]
+    print(f"\n== {OBJETIVO} · media {y.mean():.1f} · desv. típica {y.std():.1f}")
+    print(f"{'modelo':<14}{'RMSE (CV)':>12}{'± pliegues':>12}{'MAE':>8}{'R²':>8}  mejores hiperparámetros")
+    errores, busquedas = {}, {}
+    for nombre, (modelo, rejilla) in candidatos().items():
+        busqueda = buscar(modelo, rejilla, X, y)
+        m = resumen(busqueda)
+        print(f"{nombre:<14}{m['rmse']:>12.2f}{m['rmse_desv']:>12.2f}{m['mae']:>8.2f}"
+              f"{m['r2']:>8.3f}  {m['mejores']}")
+        # GridSearchCV ya ha reentrenado la mejor combinación con todo el 80 %.
+        errores[nombre] = (y_test - busqueda.predict(X_test)).to_numpy()
+        busquedas[nombre] = busqueda
 
-        tabla, mejor, elegido = elegir(errores, rng)
-        print(f"\n   examen en test ({len(test)} personas) · diferencia de RMSE frente a {mejor}, IC 95 %")
-        print(f"{'modelo':<14}{'RMSE test':>12}{'IC 95 %':>20}  ¿empata con el mejor?")
-        for nombre, (rmse, bajo, alto, empata) in tabla.items():
-            marca = "sí" if empata else "no (peor)"
-            print(f"{nombre:<14}{rmse:>12.2f}{f'[{bajo:+.2f}, {alto:+.2f}]':>20}  {marca}")
-        residuos = errores[elegido]
-        sigmas[ejercicio] = float(residuos.std(ddof=1))
-        print(f"   elegido por parsimonia: {elegido} · sesgo medio {residuos.mean():+.2f}"
-              f" · sigma {sigmas[ejercicio]:.2f}")
+    tabla, mejor, elegido = elegir(errores, rng)
+    print(f"\n   examen en test ({len(test)} personas) · diferencia de RMSE frente a {mejor}, IC 95 %")
+    print(f"{'modelo':<14}{'RMSE test':>12}{'IC 95 %':>20}  ¿empata con el mejor?")
+    for nombre, (rmse, bajo, alto, empata) in tabla.items():
+        marca = "sí" if empata else "no (peor)"
+        print(f"{nombre:<14}{rmse:>12.2f}{f'[{bajo:+.2f}, {alto:+.2f}]':>20}  {marca}")
+    residuos = errores[elegido]
+    sigma = float(residuos.std(ddof=1))
+    print(f"   elegido por parsimonia: {elegido} · sesgo medio {residuos.mean():+.2f} cm"
+          f" · sigma {sigma:.2f} cm")
 
-    print("\n== resumen: sigma por ejercicio (desviación típica de los residuos en test)")
-    for ejercicio, sigma in sigmas.items():
-        print(f"{ejercicio:<12}{sigma:>8.2f} {'cm' if ejercicio == 'sit_reach' else 'grados'}")
+    guardar(busquedas[elegido], elegido, sigma, pd.concat([entreno, test]))
+    print(f"\nGuardado: {MODELO.relative_to(CARPETA.parent)} ({elegido} reentrenado con "
+          f"{len(entreno) + len(test)} personas · sigma {sigma:.2f} cm)")
