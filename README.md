@@ -4,22 +4,23 @@ Evaluación de la flexibilidad con una **cámara única** y control de acceso me
 Proyecto final de *Visión por Ordenador I* (3º IMAT, ICAI).
 
 ## Estado
-En desarrollo. Ya funciona el **recorrido completo de una persona**, con una sola cámara, desde la calibración hasta el resultado de la medida:
+Terminado. Funciona el **recorrido completo de una persona**, con una sola cámara, desde la calibración hasta el veredicto de flexibilidad:
 - la captura de la webcam a 1280×720, el contador de FPS y la corrección de la distorsión de la lente en directo;
 - el **detector de patrones**: localiza la tarjeta en el vídeo, la pone de frente y reconoce cuál de los cuatro símbolos es (círculos concéntricos, triángulo, barras o hexágono);
 - el **control de acceso** con una secuencia de cuatro patrones: registro de usuarios (nombre y apellido, clave visual y datos personales), entrada enseñando las tarjetas a la cámara en orden, bloqueo tras tres fallos seguidos y sesión abierta con el usuario y sus datos en pantalla;
 - el **tracker** de la persona: aprende el fondo con MOG2, extrae su silueta, sigue su centroide con un **filtro de Kalman** y dibuja una **caja punteada de colocación** (roja sin persona, amarilla cuando entra y verde cuando está quieta);
 - los **puntos clave del cuerpo** con MediaPipe Pose y la **medida del ejercicio** (sit-and-reach): distancia horizontal entre la yema del dedo y el pie, en cm, con la escala sacada de una hoja A4, filtrada con la mediana de 15 fotogramas y validada por una regla (línea base, mejor ventana de 2 s, fin a los 5 s sin mejora);
-- la **integración guiada** (bloque C8): calibración de la escala dentro del programa, ventana de instrucciones, aprendizaje automático del fondo, avisos de la medida en semáforo con pitido de comienzo y de fin, y una **ventana de resultado** con tres opciones (repetir la medida, ver el análisis de flexibilidad o cerrar la sesión). Cada toma se guarda en `datos/en_vivo/<usuario>/` con captura, gráfica, serie y un `resumen.json` que incluye el perfil de la persona.
+- la **integración guiada** (bloque C8): calibración de la escala dentro del programa, ventana de instrucciones, aprendizaje automático del fondo, avisos de la medida en semáforo con pitido de comienzo y de fin, y una **ventana de resultado** con tres opciones (repetir la medida, ver el análisis de flexibilidad o cerrar la sesión). Cada toma se guarda en `datos/en_vivo/<usuario>/` con captura, gráfica, serie y un `resumen.json` que incluye el perfil de la persona;
+- el **modelo de aprendizaje automático** (bloque C11): una regresión lineal con regularización (Ridge), entrenada con un conjunto de datos sintético de 4663 personas, que estima el sit-and-reach **esperado** para la edad, el sexo, la altura y el peso de la persona (error de test: RMSE de 9,27 cm). El análisis compara la medida con ese valor mediante z = (medida − esperado) / σ y da el **veredicto**: poco flexible (z < −1), en la media (−1 ≤ z ≤ 1) o muy flexible (z > 1). El modelo está guardado en `modelos/sit_reach.joblib` y se conecta en `src/flexscan/modelo_ml.py` (contrato en `docs/prompt_gonzalo.md`).
 
-Queda por hacer la parte de aprendizaje automático: el análisis ya compara la medida con el valor de un modelo, pero ese valor aparece como «pendiente del modelo» hasta que se integre (punto de enganche único en `src/flexscan/modelo_ml.py`, contrato en `docs/prompt_gonzalo.md`), y después el veredicto final automático. El proyecto se centra en **un solo ejercicio, el sit-and-reach**.
+El proyecto se centra en **un solo ejercicio, el sit-and-reach**. El valor esperado es el típico para el perfil, no el óptimo, y el perfil explica poca parte de la variación entre personas (ver el cuaderno de C11), así que el veredicto es orientativo.
 
 La documentación técnica de cada bloque está en la carpeta del proyecto (ver «Documentación»).
 
 ## Requisitos
 - Python 3
 - Webcam (probado con la del portátil, en Windows)
-- Dependencias de `requirements.txt`: `numpy`, `opencv-contrib-python` y `mediapipe`
+- Dependencias de `requirements.txt`, con versiones fijas: `numpy`, `opencv-contrib-python`, `mediapipe`, `scikit-learn`, `pandas`, `joblib`, `matplotlib` y sus dependencias
 - Una hoja **A4** para calibrar la escala (los pitidos de aviso solo suenan en Windows)
 
 ## Instalación
@@ -77,7 +78,7 @@ Parámetros ajustables (constantes al inicio de cada módulo): tamaño de la caj
 4. **Fondo automático**: pantalla roja con cuenta atrás de 5 s para apartarse del encuadre, aprendizaje del fondo y aviso verde «Fondo aprendido».
 5. **Colocarse**: siéntate de lado con las piernas estiradas y las **manos en las rodillas**, quieto dentro de la zona marcada (aviso rojo hasta estar en el sitio).
 6. **Medir**: al fijarse la posición de partida sale un aviso **amarillo** y suena un **pitido agudo**: extiende los brazos hacia los pies y mantén la postura. Unos 5 s después de tu mejor ventana suena un **pitido grave largo** y sale en verde «MEDICIÓN REALIZADA» con los centímetros (negativos si la yema no llega al pie). Si no hay ventana válida en 60 s, suenan dos graves cortos y sale «NO SE HA PODIDO MEDIR».
-7. **Resultado**: una ventana detiene el vídeo con la medida y tres opciones: **repetir** (**n**; no hay que mover la cámara), **obtener el análisis de flexibilidad** (**a**, que compara la medida con el valor del modelo, aún pendiente) o **cerrar sesión** (**s**).
+7. **Resultado**: una ventana detiene el vídeo con la medida y tres opciones: **repetir** (**n**; no hay que mover la cámara), **obtener el análisis de flexibilidad** (**a**, que compara la medida con el valor esperado por el modelo y da el veredicto) o **cerrar sesión** (**s**).
 8. Cada toma se guarda sola en `datos/en_vivo/<usuario>/toma_AAAAMMDD_HHMMSS/` (`captura.png`, `grafica.png`, `serie.csv`, `resumen.json`).
 
 Error esperado de la medida: unos 3–4 cm. Parámetros ajustables en `medida.py` (ventana, variaciones, subida mínima, fin sin mejora, límite) y `escala.py`.
@@ -134,20 +135,21 @@ src/flexscan/
     bienvenida.py      presentación del proyecto
     pantalla_medida.py avisos temporizados de la medida (rojo, amarillo y verde)
     ventana_resultado.py  ventana de resultado: repetir, análisis o cerrar sesión
-    ventana_analisis.py   ventana del análisis: medida frente al valor del modelo
-    modelo_ml.py       punto de enganche del modelo de aprendizaje automático
+    ventana_analisis.py   ventana del análisis: medida frente al valor esperado y veredicto
+    modelo_ml.py       carga el modelo guardado, predice el valor esperado y calcula z y el veredicto
+    fuentes/           tipografía Carlito (con su licencia) para los textos de las ventanas
 docs/                prompt_gonzalo.md: contrato para integrar el modelo de ML
-modelos/             modelo de MediaPipe Pose
+modelos/             pose.task (MediaPipe Pose) y sit_reach.joblib (modelo Ridge del valor esperado)
 patrones/            los cuatro símbolos en PNG
 usuarios.json        usuarios registrados (local, no se sube a GitHub)
 datos/               escala de la sesión, en_vivo/ (tomas guardadas por el programa) y pruebas_y_calibracion/ (ver datos/README.md)
 C1-C2 - .../         calibración de la cámara (se ejecuta una vez)
+C11 - Datos y modelo/  conjunto de datos sintético, entrenamiento y diagnóstico del modelo (tiene su propio README)
 requirements.txt     dependencias con versiones fijas
 ```
 
 ## Documentación
 ```
-Propuesta_FlexScan_v3.pdf                          propuesta anterior (15 nov): tres pruebas e índice de flexibilidad
 Propuesta_FlexScan_version_final.pdf               propuesta final (17 nov), ajustada a las decisiones del desarrollo
 FlexScan_Plan_de_trabajo.pdf                       plan por bloques y estado
 FlexScan_C1-C2_Calibracion_y_preparacion.pdf       cuaderno técnico: calibración y preparación
@@ -156,9 +158,16 @@ FlexScan_C5_Seguridad.pdf                          cuaderno técnico: control de
 FlexScan_C6_Tracker.pdf                            cuaderno técnico: tracker y caja de colocación
 FlexScan_C7_Puntos_clave.pdf                       cuaderno técnico: puntos clave y medida de flexibilidad
 FlexScan_C8_Integracion.pdf                        cuaderno técnico: integración del recorrido completo
+FlexScan_C11_Datos_y_modelo.pdf                    cuaderno técnico: conjunto de datos y modelo de aprendizaje automático
 FlexScan_Explicaciones_tecnicas.docx               cuaderno técnico en curso (C9 en adelante; vacío por ahora)
 ```
 Cada grupo de bloques cerrado se pasa a su propio PDF y el Word queda libre para el siguiente.
+
+## Vídeos explicativos
+```
+video_final_total_comprimido.mp4      explicación completa del proyecto, bloque a bloque (C1-C2 a C11, unos 33 min, 720p)
+video_final_reducido_comprimido.mp4   versión reducida (unos 16 min, 720p)
+```
 
 ## Calibración
 La cámara se calibró con 19 fotos de un damero (9×6 esquinas, cuadro de 23 mm), con un error RMS de 1,52 px. Los parámetros se guardan en `calibracion.npz`, único fichero que el programa necesita de esa fase. Si se cambia de cámara o de resolución, hay que recalibrar y sustituirlo.
