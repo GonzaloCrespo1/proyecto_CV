@@ -2,7 +2,8 @@
 
 Durante unos segundos se ve un núcleo que procesa los datos de la persona (perfil y medida), sin representar
 ningún tipo de modelo concreto; después se enseñan juntos el valor de la medida experimental y el valor del modelo. Mientras el modelo no esté listo, el valor del
-modelo aparece como «valor_ml» con la etiqueta «pendiente del modelo».
+modelo aparece como «valor_ml» con la etiqueta «pendiente del modelo». Con el modelo listo, encima de los dos
+valores sale el veredicto (poco flexible, en la media o muy flexible) según z = (medida - esperado) / sigma.
 """
 import math
 import time
@@ -12,6 +13,7 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 from flexscan.instrucciones import AZUL, BLANCO, GRIS_CLARO, NARANJA, TURQUESA, _fuente
+from flexscan.modelo_ml import veredicto
 from flexscan.pantalla_medida import texto_cm
 
 VENTANA = "FlexScan - Analisis de flexibilidad"
@@ -31,6 +33,8 @@ ENTRADAS = {"Tu perfil": (250, 214), "Tu medida": (250, 322)}      # fichas de d
 SALIDA = (1030, 268)                      # ficha de salida: valor del modelo
 R_NUCLEO = 92
 NARANJA_CL = (255, 190, 140)
+COLOR_VEREDICTO = {"POCO FLEXIBLE": NARANJA, "EN LA MEDIA": TURQUESA_CL, "MUY FLEXIBLE": (120, 215, 130)}
+VEREDICTO = (150, 404, 1130, 470)          # franja del veredicto, encima de las dos tarjetas
 
 
 def _ficha(d, centro, texto, color, ancho=190):
@@ -39,9 +43,14 @@ def _ficha(d, centro, texto, color, ancho=190):
     d.text((x, y - 1), texto, font=_fuente(24, True), fill=BLANCO, anchor="mm")
 
 
-def _tarjeta(d, caja, titulo, valor, unidad, color, etiqueta=None, pequeno=False):
+def _tarjeta(d, caja, titulo, valor, unidad, color, etiqueta=None, pequeno=False, compacta=False):
     x0, y0, x1, y1 = caja
     d.rounded_rectangle(caja, 20, fill=(20, 40, 66), outline=color, width=3)
+    if compacta:                                   # versión baja, para dejar sitio al veredicto
+        d.text(((x0 + x1) // 2, y0 + 26), titulo, font=_fuente(22, True), fill=color, anchor="mm")
+        d.text(((x0 + x1) // 2, y0 + 78), valor, font=_fuente(66, True), fill=BLANCO, anchor="mm")
+        d.text(((x0 + x1) // 2, y0 + 127), unidad, font=_fuente(22), fill=GRIS_CLARO, anchor="mm")
+        return
     d.text(((x0 + x1) // 2, y0 + 34), titulo, font=_fuente(25, True), fill=color, anchor="mm")
     d.text(((x0 + x1) // 2, y0 + 96), valor, font=_fuente(64 if pequeno else 88, True), fill=BLANCO, anchor="mm")
     if unidad:
@@ -69,14 +78,17 @@ def _base(medida_cm, valor_ml, modelo_listo, fase, puntos, sobre):
         d.text((ANCHO // 2, 530), "Se estudian tu perfil y tu medida", font=_fuente(24), fill=GRIS_CLARO,
                anchor="mm")
         d.rounded_rectangle((340, 590, 940, 606), 8, fill=(30, 54, 84))
+    elif modelo_listo and valor_ml is not None:
+        _veredicto(d, medida_cm, valor_ml)
+        _tarjeta(d, (150, 480, 610, 632), "TU MEDIDA EXPERIMENTAL", texto_cm(medida_cm), "cm", TURQUESA_CL,
+                 compacta=True)
+        _tarjeta(d, (670, 480, 1130, 632), "VALOR ESPERADO PARA TU PERFIL", texto_cm(valor_ml), "cm",
+                 (255, 190, 140), compacta=True)
     else:
         _tarjeta(d, (150, 432, 610, 622), "TU MEDIDA EXPERIMENTAL", texto_cm(medida_cm), "cm", TURQUESA_CL)
-        if modelo_listo and valor_ml is not None:
-            _tarjeta(d, (670, 432, 1130, 622), "MODELO DE APRENDIZAJE AUTOMÁTICO", texto_cm(valor_ml), "cm",
-                     (255, 190, 140))
-        else:
-            _tarjeta(d, (670, 432, 1130, 622), "MODELO DE APRENDIZAJE AUTOMÁTICO", "valor_ml", None,
-                     (255, 190, 140), etiqueta="PENDIENTE DEL MODELO", pequeno=True)
+        _tarjeta(d, (670, 432, 1130, 622), "MODELO DE APRENDIZAJE AUTOMÁTICO", "valor_ml", None,
+                 (255, 190, 140), etiqueta="PENDIENTE DEL MODELO", pequeno=True)
+    if fase != "analizando":
         bx0, by0, bx1, by1 = BOTON
         d.rounded_rectangle(BOTON, 16, fill=AZUL if sobre else TURQUESA, outline=TURQUESA_CL if sobre else None, width=2)
         d.text(((bx0 + bx1) // 2, (by0 + by1) // 2 - 1), "Volver", font=_fuente(30, True), fill=BLANCO, anchor="mm")
@@ -88,6 +100,20 @@ def _base(medida_cm, valor_ml, modelo_listo, fase, puntos, sobre):
         cv2.line(img, (centro[0] + 95, centro[1]), (NUCLEO[0] - R_NUCLEO, NUCLEO[1]), _bgr(AZUL_LINEA), 1, cv2.LINE_AA)
     cv2.line(img, (NUCLEO[0] + R_NUCLEO, NUCLEO[1]), (SALIDA[0] - 115, SALIDA[1]), _bgr(AZUL_LINEA), 1, cv2.LINE_AA)
     return img
+
+
+def _veredicto(d, medida_cm, valor_ml):
+    """Franja con la categoría (color según el veredicto) y, debajo, z y la diferencia en cm."""
+    z, categoria = veredicto(medida_cm, valor_ml)
+    color = COLOR_VEREDICTO[categoria]
+    x0, y0, x1, y1 = VEREDICTO
+    d.rounded_rectangle(VEREDICTO, 18, fill=(20, 40, 66), outline=color, width=3)
+    d.text(((x0 + x1) // 2, y0 + 22), categoria, font=_fuente(32, True), fill=color, anchor="mm")
+    dif = medida_cm - valor_ml
+    lado = "por encima de" if dif > 0 else "por debajo de" if dif < 0 else "justo en"
+    texto_z = f"{z:+.2f}".replace("-", "−").replace(".", ",")
+    detalle = f"z = {texto_z}  ·  {abs(dif):.1f} cm {lado} lo esperado para tu perfil".replace(".", ",")
+    d.text(((x0 + x1) // 2, y0 + 50), detalle, font=_fuente(20), fill=GRIS_CLARO, anchor="mm")
 
 
 def _anillo(img, radio, t, velocidad, color, grosor, arcos=3):
